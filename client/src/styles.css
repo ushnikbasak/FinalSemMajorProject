@@ -1,0 +1,577 @@
+html {
+  font-size: 10px;
+  font-family: sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+#App {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  --primary-color: #1266cc;
+  --secondary-color: #f96400;
+  --flash-color: rgb(89, 255, 0);
+  --gray: #999;
+  --light-gray: #e0e0e0;
+  --dark-gray: #777;
+}
+
+#App .container {
+  width: 40%;
+  min-width: 60rem;
+  max-width: 75rem;
+  height: 100%;
+}
+
+/* NAVBAR STYLES */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000; /* on top of other elements */
+  width: 100%;
+  background-color: beige;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: black;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+}
+
+.navbar h2 {
+  font-size: 2rem;
+  color: black;
+}
+
+.navbar ul {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.navbar li {
+  display: inline;
+  background-color: transparent;
+  border: none;
+  color: black;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: sans-serif;
+}
+
+.navbar a {
+  text-decoration: none;
+  color: black;
+  font-size: 1.4rem;
+  transition: color 0.3s;
+}
+
+.navbar a:hover {
+  color: var(--secondary-color);
+}
+
+.connect-wallet-button {
+  margin-left: 2rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 1.8rem;
+  border: none;
+  background-color: rgb(203, 5, 170);
+  color: white;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-family: Franklin Gothic Medium;
+}
+
+.connect-wallet-button:hover {
+  color: rgb(203, 5, 170);
+}
+
+.nav-role-button {
+  background-color: transparent;
+  border: none;
+  color: black;
+  font-size: 1.4rem;
+  cursor: pointer;
+  font-family: sans-serif;
+}
+
+.navbar button:hover {
+  background-color: var(--dark-gray);
+}
+
+.container {
+  padding-top: 5rem;
+}
+
+
+/* HOMEPAGE STYLES */
+.home-container {
+  padding: 5rem 2rem;
+  text-align: center;
+}
+
+.home-container h3 {
+  font-size: 2.4rem;
+  margin-bottom: 1rem;
+}
+
+.home-container p {
+  font-size: 1.6rem;
+  margin-bottom: 3rem;
+}
+
+.role-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2.5rem;
+}
+
+.role-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 22rem;
+  height: 18rem;
+  padding: 2rem;
+  border-radius: 2rem;
+  text-decoration: none;
+  color: white;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.3s;
+  text-align: center;
+}
+
+
+.role-card h4 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.role-card p {
+  font-size: 1.4rem;
+}
+
+.role-card:nth-child(1) {
+  background-color: #007bff;
+}
+
+.role-card:nth-child(2) {
+  background-color: #28a745;
+}
+
+.role-card:nth-child(3) {
+  background-color: #db8b0a;
+}
+
+.role-card:nth-child(4) {
+  background-color: #dc3545;
+}
+
+.role-card:nth-child(5) {
+  background-color: #aa35dc;
+}
+
+.role-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.3);
+}
+
+.role-card .emoji {
+  font-size: 4rem;
+  margin-bottom: 1.2rem;
+  transition: transform 0.3s;
+}
+
+.role-card:hover .emoji {
+  transform: scale(1.1);
+}
+
+code {
+  display: block;
+  white-space: pre-wrap;
+  padding: 1.2rem 2rem;
+  border-radius: 1rem;
+  background-color: var(--light-gray);
+  font-size: 1.4rem;
+}
+
+code span {
+  transition: all 0.3s;
+}
+
+code span.primary-color {
+  color: var(--primary-color);
+}
+
+code span.secondary-color {
+  color: var(--secondary-color);
+}
+
+code span.dim-color {
+  color: var(--gray);
+}
+
+code span.flash {
+  background-color: var(--flash-color);
+}
+
+details {
+  margin: 1.6rem 0;
+  padding: 0.5rem 2rem 0.5rem 0;
+  border: 1px solid var(--light-gray);
+  border-radius: 1rem;
+}
+
+details :not(summary, span) {
+  margin-left: 2.55rem;
+}
+
+details summary {
+  padding: 1.2rem;
+  cursor: pointer;
+}
+
+p,
+details code {
+  margin-top: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+p {
+  line-height: 2.6rem;
+}
+
+p span.code {
+  font-family: monospace;
+  color: var(--gray);
+}
+
+#App .container .welcome h1 {
+  padding-top: 7.5rem;
+  font-size: 2.6rem;
+}
+
+#App .container .demo .contract-container {
+  display: flex;
+}
+
+#App .container .demo .contract-container code {
+  min-width: 42rem;
+  border-radius: 1rem 0 0 1rem;
+}
+
+#App .container .demo .contract-container .btns {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 0 1rem;
+  background-color: var(--gray);
+  border-radius: 0 1rem 1rem 0;
+}
+
+#App .container .demo .contract-container .btns > * {
+  width: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0;
+  background-color: var(--light-gray);
+  border: none;
+  font-size: 1.2rem;
+  font-family: monospace;
+  cursor: pointer;
+}
+
+#App .container .demo .contract-container .btns > *:hover {
+  background-color: var(--dark-gray);
+}
+
+#App .container .demo .contract-container .btns .input-btn input {
+  width: 4rem;
+  text-align: center;
+  font-family: monospace;
+  font-size: 1.2rem;
+}
+
+#App .container footer {
+  padding-bottom: 7.5rem;
+}
+
+#App .container footer a {
+  display: inline-block;
+  margin: 2rem 1rem 0 0;
+}
+
+.uploaded-students-section {
+  margin-top: 3rem;
+  padding: 2rem;
+  background-color: #f9f9f9;
+  border-radius: 1rem;
+  box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+.uploaded-students-section h4 {
+  margin-bottom: 1.5rem;
+  font-size: 2rem;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+.uploaded-students-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.4rem;
+  background-color: white;
+}
+
+.uploaded-students-table th,
+.uploaded-students-table td {
+  border: 1px solid var(--light-gray);
+  padding: 1rem 1.5rem;
+  text-align: center;
+}
+
+.uploaded-students-table th {
+  background-color: #f0f8ff;
+  color: black;
+}
+
+.uploaded-students-table tr:nth-child(even) {
+  background-color: #f0f8ff;
+}
+
+.uploaded-students-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.uploaded-students-table th,
+.uploaded-students-table td {
+  border: 1px solid #ccc;
+  padding: 0.8rem;
+  text-align: center;
+}
+
+.uploaded-students-table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+.marksheet-details button {
+  background-color: #007bff;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.marksheet-details button:hover {
+  background-color: #0056b3;
+}
+
+.lists-container {
+  display: flex;
+  gap: 2rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.list-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  background-color: #fdf5e6;
+  padding: 1.2rem;
+  border-radius: 1rem;
+  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  margin: 3rem auto;
+}
+
+.list-box button {
+  background-color: #333;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.list-box button:hover {
+  background-color: #555;
+}
+
+.role-management-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 2rem;
+  padding: 1rem;
+  width: 40%;
+  margin: 3rem auto;
+}
+
+.role-management-box h4 {
+  width: 100%;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: -1.4rem;
+  color: #222;
+}
+
+.role-management-box input{
+  width: 100%;
+  padding: 0.8rem 1.2rem;
+  margin-bottom: 1rem;
+  border: 1px solid #333;
+  border-radius: 0.5rem;
+  font-size: 1.4rem;
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.role-management-box p {
+  width: 100%;
+  text-align: center;
+  font-size: 1.4rem;
+  margin-top: -1.4rem;
+}
+
+.form-box {
+  text-align: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-top: 3rem;
+  margin: 3rem auto;
+  width: 90%;
+  max-width: 90%;
+}
+
+.form-box h3 {
+  width: 100%;
+  text-align: center;
+  font-size: 2.6rem;
+  font-weight: bold;
+  margin-bottom: 2rem;
+  color: #222;
+}
+
+.professor-list-box {
+  flex: 1 1 40rem;
+  display: flex;
+  flex-direction: column;
+  background-color: #fdf5e6;
+  padding: 1.2rem;
+  border-radius: 1rem;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  margin: 1rem 0;
+  width: 100%;
+  max-width: 48%;
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.professor-list-box button {
+  background-color: #333;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.professor-list-box button:hover {
+  background-color: #555;
+}
+
+/* Style for the upload form */
+.upload-form {
+  margin: 3rem auto;
+  flex: 1;
+  min-width: 30rem;
+  max-width: 60rem;
+  background-color: #fdf5e6;
+  padding: 1.2rem;
+  border-radius: 1rem;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.upload-form h3 {
+  margin-bottom: 1.5rem;
+  font-size: 2rem;
+  color: #1266cc;
+  text-align: center;
+}
+
+.upload-form p {
+  margin: 1rem 0;
+  color: #444;
+  font-size: 1.6rem;
+}
+
+.upload-form input {
+  width: 100%;
+  padding: 0.8rem 1.2rem;
+  margin-bottom: 1rem;
+  border: 1px solid #333;
+  border-radius: 0.5rem;
+  font-size: 1.4rem;
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.upload-form button {
+  background-color: #333;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1.4rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.upload-form button:hover:enabled {
+  background-color: #555;
+}
+
+.upload-form button:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+}
+
+.student-section {
+  flex: 1;
+  min-width: 30rem;
+}
