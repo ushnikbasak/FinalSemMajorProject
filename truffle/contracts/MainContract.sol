@@ -80,15 +80,30 @@ contract MainContract
         return studentList.length;
     }
 
+    function registerStudents(uint[] calldata _studentIds) external onlyDean 
+    {
+        for (uint i = 0; i < _studentIds.length; i++) 
+        {
+            uint id = _studentIds[i];
+
+            require(id != 0, "Invalid student ID");
+            require(marksheets[id].studentId == 0, "Student already registered");
+
+            marksheets[id].studentId = id;
+
+            studentList.push(id);
+        }
+    }
+
     function upload(uint _studentId, uint _marks) external onlyProfessor 
     {
-        require(marksheets[_studentId].professorAddress == address(0), "Marksheet already initiated for this student");
+        Marksheet storage marksheet = marksheets[_studentId];
 
-        marksheets[_studentId].studentId = _studentId;
-        marksheets[_studentId].marks = _marks;
-        marksheets[_studentId].professorAddress = msg.sender;
+        require(marksheet.studentId != 0, "Student not registered");
+        require(marksheet.professorAddress == address(0), "Marks already uploaded");
 
-        studentList.push(_studentId);
+        marksheet.marks = _marks;
+        marksheet.professorAddress = msg.sender;
     }
 
     function validate(uint _studentId, uint _nonce) external onlyAssociateDean 

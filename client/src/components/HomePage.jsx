@@ -39,27 +39,27 @@ const HomePage = () => {
       <p>Please connect your MetaMask Wallet before proceeding:</p>
       <div className="role-options">
         <div className="role-card" onClick={() => checkAndNavigate("/professor", "isProfessor")}>
-          <div className="emoji">👨‍🏫</div>
+          {/* <div className="emoji">👨‍🏫</div> */}
           <h4>Professor</h4>
         </div>
 
         <div className="role-card" onClick={() => checkAndNavigate("/associate-dean", "isAssociateDean")}>
-          <div className="emoji">🧑‍💼</div>
+          {/* <div className="emoji">🧑‍💼</div> */}
           <h4>Associate Dean</h4>
         </div>
 
         <div className="role-card" onClick={() => checkAndNavigate("/dean", "dean")}>
-          <div className="emoji">🎓</div>
+          {/* <div className="emoji">🎓</div> */}
           <h4>Dean</h4>
         </div>
 
         <div className="role-card" onClick={() => navigate("/verifier")}>
-          <div className="emoji">🧾</div>
+          {/* <div className="emoji">🧾</div> */}
           <h4>Verify Marksheet</h4>
         </div>
 
         <div className="role-card" onClick={() => navigate("/student")}>
-          <div className="emoji">👩‍🎓</div>
+          {/* <div className="emoji">👩‍🎓</div> */}
           <h4>Student</h4>
         </div>
       </div>
