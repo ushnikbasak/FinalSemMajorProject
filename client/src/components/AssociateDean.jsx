@@ -14,7 +14,6 @@ const AssociateDean = () => {
   const [showPending, setShowPending] = useState(false);
   const [showValidated, setShowValidated] = useState(false);
 
-
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
   useEffect(() => {
@@ -36,10 +35,10 @@ const AssociateDean = () => {
 
   useEffect(() => {
     const fetchMarksheet = async () => {
-      if (!studentId) return;
+      if (!studentId || !contract || !account) return;
 
       try {
-        const result = await contract.methods.viewMarksheet(studentId).call();
+        const result = await contract.methods.viewMarksheet(studentId).call({ from: account });
 
         if (result.professorAddress === zeroAddress) {
           setMarksheet(null);
@@ -59,7 +58,7 @@ const AssociateDean = () => {
     };
 
     fetchMarksheet();
-  }, [studentId, contract]);
+  }, [studentId, contract, account]);
 
   useEffect(() => {
     const fetchAllStudents = async () => {
@@ -73,28 +72,32 @@ const AssociateDean = () => {
         const seen = new Set();
 
         for (let i = 0; i < length; i++) {
-          const studentId = await contract.methods.studentList(i).call();
+          const sId = await contract.methods.studentList(i).call();
 
-          if (seen.has(studentId)) continue;
-          seen.add(studentId);
+          if (seen.has(sId)) continue;
+          seen.add(sId);
 
-          const m = await contract.methods.viewMarksheet(studentId).call();
+          try {
+            const m = await contract.methods.viewMarksheet(sId).call({ from: account });
 
-          if (m.professorAddress !== zeroAddress) {
-            if (m.isValidated && m.validatedBy.toLowerCase() === account.toLowerCase()) {
-              validated.push({
-                studentId: m.studentId,
-                marks: m.marks,
-                professorAddress: m.professorAddress,
-                timestamp: m.timestamp,
-              });
-            } else if (!m.isValidated) {
-              pending.push({
-                studentId: m.studentId,
-                marks: m.marks,
-                professorAddress: m.professorAddress,
-              });
+            if (m.professorAddress !== zeroAddress) {
+              if (m.isValidated && m.validatedBy.toLowerCase() === account.toLowerCase()) {
+                validated.push({
+                  studentId: m.studentId,
+                  marks: m.marks,
+                  professorAddress: m.professorAddress,
+                  timestamp: m.timestamp,
+                });
+              } else if (!m.isValidated) {
+                pending.push({
+                  studentId: m.studentId,
+                  marks: m.marks,
+                  professorAddress: m.professorAddress,
+                });
+              }
             }
+          } catch (innerErr) {
+            console.warn(`Skipping student ${sId} - Access denied or missing.`);
           }
         }
 
@@ -150,7 +153,7 @@ const AssociateDean = () => {
       await contract.methods.validate(studentId, nonce).send({ from: account });
       setStatus("✅ Marksheet validated successfully!");
 
-      const updated = await contract.methods.viewMarksheet(studentId).call();
+      const updated = await contract.methods.viewMarksheet(studentId).call({ from: account });
       setMarksheet(updated);
 
       // Add to validatedByMe

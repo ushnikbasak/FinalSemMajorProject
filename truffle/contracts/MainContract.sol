@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 contract MainContract 
 {
-
     address public dean;
 
     mapping(address => bool) public isProfessor;
@@ -14,6 +13,7 @@ contract MainContract
     struct Marksheet 
     {
         uint studentId;
+        address studentWallet;
         uint marks;
         address professorAddress;
         bool isValidated;
@@ -39,6 +39,18 @@ contract MainContract
     modifier onlyAssociateDean() 
     {
         require(isAssociateDean[msg.sender], "Caller is not an Associate Dean");
+        _;
+    }
+
+    modifier onlyAuthorizedViewer(uint _studentId) 
+    {
+        require(
+            msg.sender == dean || 
+            isProfessor[msg.sender] || 
+            isAssociateDean[msg.sender] || 
+            msg.sender == marksheets[_studentId].studentWallet,
+            "Caller is not authorized to view this marksheet"
+        );
         _;
     }
 
@@ -80,16 +92,21 @@ contract MainContract
         return studentList.length;
     }
 
-    function registerStudents(uint[] calldata _studentIds) external onlyDean 
+    function registerStudents(uint[] calldata _studentIds, address[] calldata _studentWallets) external onlyDean 
     {
+        require(_studentIds.length == _studentWallets.length, "Mismatched array lengths");
+
         for (uint i = 0; i < _studentIds.length; i++) 
         {
             uint id = _studentIds[i];
+            address wallet = _studentWallets[i];
 
             require(id != 0, "Invalid student ID");
+            require(wallet != address(0), "Invalid student wallet address");
             require(marksheets[id].studentId == 0, "Student already registered");
 
             marksheets[id].studentId = id;
+            marksheets[id].studentWallet = wallet;
 
             studentList.push(id);
         }
@@ -142,7 +159,7 @@ contract MainContract
         marksheet.uploadedBy = dean;
     }
 
-    function viewMarksheet(uint _studentId) external view returns (Marksheet memory) 
+    function viewMarksheet(uint _studentId) external view onlyAuthorizedViewer(_studentId) returns (Marksheet memory) 
     {
         return marksheets[_studentId];
     }

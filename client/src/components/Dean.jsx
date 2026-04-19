@@ -11,6 +11,7 @@ const Dean = () => {
   const [isDean, setIsDean] = useState(false);
 
   const [parsedIds, setParsedIds] = useState([]);
+  const [parsedWallets, setParsedWallets] = useState([]);
   const [batchStatus, setBatchStatus] = useState("");
 
   const [newProfAddress, setNewProfAddress] = useState("");
@@ -43,10 +44,10 @@ const Dean = () => {
   // Fetch marksheet
   useEffect(() => {
     const fetchMarksheet = async () => {
-      if (!studentId || !contract) return;
+      if (!studentId || !contract || !account) return;
 
       try {
-        const result = await contract.methods.viewMarksheet(studentId).call();
+        const result = await contract.methods.viewMarksheet(studentId).call({ from: account });
 
         if (result.professorAddress === zeroAddress) {
           setMarksheet(null);
@@ -61,46 +62,77 @@ const Dean = () => {
         }
       } catch (err) {
         console.error("Error fetching marksheet:", err);
-        setStatus("Error fetching marksheet. Check console for details.");
+        setStatus("❌ Error fetching marksheet. Check console for details.");
       }
     };
 
     fetchMarksheet();
-  }, [studentId, contract]);
+  }, [studentId, contract, account]);
 
-  // CSV parsing (To catch 0 and negative numbers)
+  // CSV parsing
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     Papa.parse(file, {
       complete: (results) => {
-        const raw = results.data.flat();
-        
-        // 1. Convert everything to integers first
-        const parsedArray = raw.map((id) => parseInt(id, 10));
+        const ids = [];
+        const wallets = [];
+        let hasError = false;
+        let errorMessage = "";
 
-        // 2. Check for invalid IDs (0 or negative) BEFORE filtering
-        const hasInvalidId = parsedArray.some((id) => !isNaN(id) && id <= 0);
+        // Iterate through rows (expected format: [id, walletAddress])
+        for (let i = 0; i < results.data.length; i++) {
+          const row = results.data[i];
+          
+          // Skip empty rows or rows that only contain a blank string
+          if (row.length === 0 || (row.length === 1 && !row[0].trim())) continue;
 
-        if (hasInvalidId) {
-          setParsedIds([]);
-          document.getElementById("csv-upload-input").value = "";
-          setBatchStatus("❌ Upload failed: An invalid student id (0 or negative) exists in the csv.");
-          return; // Stop execution
+          // Check if row has at least 2 columns
+          if (row.length < 2) {
+            hasError = true;
+            errorMessage = `Row ${i + 1} is missing data. Expected ID and Wallet Address.`;
+            break;
+          }
+
+          const id = parseInt(row[0], 10);
+          const wallet = row[1] ? row[1].trim() : "";
+
+          // Validate ID
+          if (isNaN(id) || id <= 0) {
+            hasError = true;
+            errorMessage = `Invalid ID (0, negative, or not a number) at row ${i + 1}.`;
+            break;
+          }
+
+          // Validate Wallet Address
+          if (!web3.utils.isAddress(wallet)) {
+            hasError = true;
+            errorMessage = `Invalid Ethereum address at row ${i + 1}: ${wallet}`;
+            break;
+          }
+
+          ids.push(id);
+          wallets.push(wallet);
         }
 
-        // 3. Filter out non-numbers (like empty strings or text)
-        const validIds = parsedArray.filter((id) => !isNaN(id));
-
-        if (validIds.length === 0) {
-          setBatchStatus("❌ No valid student IDs found in CSV.");
+        if (hasError) {
+          setParsedIds([]);
+          setParsedWallets([]);
+          document.getElementById("csv-upload-input").value = "";
+          setBatchStatus(`❌ Upload failed: ${errorMessage}`);
           return;
         }
 
-        setParsedIds(validIds);
+        if (ids.length === 0) {
+          setBatchStatus("❌ No valid data found in CSV.");
+          return;
+        }
+
+        setParsedIds(ids);
+        setParsedWallets(wallets);
         setBatchStatus(
-          `Parsed ${validIds.length} valid Student IDs ready for registration.`
+          `Parsed ${ids.length} valid Student records ready for registration.`
         );
       },
       header: false,
@@ -116,7 +148,7 @@ const Dean = () => {
       setBatchStatus("Processing transaction. Please confirm in wallet...");
 
       await contract.methods
-        .registerStudents(parsedIds)
+        .registerStudents(parsedIds, parsedWallets)
         .send({ from: account });
 
       setBatchStatus(
@@ -124,6 +156,7 @@ const Dean = () => {
       );
 
       setParsedIds([]);
+      setParsedWallets([]);
       document.getElementById("csv-upload-input").value = "";
 
       fetchStudentLists();
@@ -142,7 +175,7 @@ const Dean = () => {
 
       setStatus("✅ Marksheet finalized and uploaded.");
 
-      const updated = await contract.methods.viewMarksheet(studentId).call();
+      const updated = await contract.methods.viewMarksheet(studentId).call({ from: account });
       setMarksheet(updated);
 
       fetchStudentLists();
@@ -152,9 +185,8 @@ const Dean = () => {
     }
   };
 
-  // Fetch lists
   const fetchStudentLists = async () => {
-    if (!contract) return;
+    if (!contract || !account) return;
 
     try {
       const length = await contract.methods.studentListLength().call();
@@ -169,20 +201,26 @@ const Dean = () => {
         if (seen.has(id)) continue;
         seen.add(id);
 
-        const m = await contract.methods.viewMarksheet(id).call();
+        try {
+          const m = await contract.methods.viewMarksheet(id).call({ from: account });
 
-        if (m.professorAddress === zeroAddress) continue;
+          if (m.professorAddress === zeroAddress) continue;
 
-        if (m.isUploaded) {
-          finalized.push({
-            studentId: m.studentId,
-            marks: m.marks,
-            professorAddress: m.professorAddress,
-            validatedBy: m.validatedBy,
-            timestamp: m.timestamp,
-          });
-        } else if (m.isValidated && !m.isUploaded) {
-          notFinalized.push(m.studentId);
+          if (m.isUploaded) {
+            finalized.push({
+              studentId: m.studentId,
+              studentWallet: m.studentWallet, 
+              marks: m.marks,
+              professorAddress: m.professorAddress,
+              validatedBy: m.validatedBy,
+              timestamp: m.timestamp,
+            });
+          } else if (m.isValidated && !m.isUploaded) {
+            notFinalized.push(m.studentId);
+          }
+        } catch (innerErr) {
+          // Prevent a single error from crashing the entire loop
+          console.warn(`Skipping student ${id} - Access denied or missing.`);
         }
       }
 
@@ -270,6 +308,7 @@ const Dean = () => {
       {/* CSV Upload */}
       <div className="upload-form" style={{ marginBottom: "20px", padding: "15px", backgroundColor: "#f9f9f9", borderRadius: "8px" }}>
         <h4>Batch Register Students (CSV)</h4>
+        <p style={{fontSize: "0.85em", color: "#666"}}>Format: Student ID, Wallet Address</p>
 
         <input
           id="csv-upload-input"
@@ -277,7 +316,7 @@ const Dean = () => {
           accept=".csv"
           onChange={handleFileUpload}
           onClick={(e) => {
-            e.target.value = null; // Forces onChange to fire even for the same file
+            e.target.value = null; 
           }}
           disabled={!isDean}
         />
@@ -285,8 +324,8 @@ const Dean = () => {
         {parsedIds.length > 0 && (
           <div style={{ marginTop: "10px" }}>
             <p>
-              <strong>Preview First 5 IDs:</strong>{" "}
-              {parsedIds.slice(0, 5).join(", ")}
+              <strong>Preview First 5:</strong>{" "}
+              {parsedIds.slice(0, 5).map((id, index) => `${id} (${parsedWallets[index].slice(0, 6)}...${parsedWallets[index].slice(-4)})`).join(", ")}
               {parsedIds.length > 5 ? ' ...' : ''}
             </p>
 
@@ -320,6 +359,7 @@ const Dean = () => {
           <div className="marksheet-details">
             <p><strong>Marksheet Details (from blockchain)</strong></p>
             <p><strong>Student ID:</strong> {marksheet.studentId}</p>
+            <p><strong>Student Wallet:</strong> {marksheet.studentWallet}</p>
             <p><strong>Marks:</strong> {marksheet.marks}</p>
             <p><strong>Professor Address:</strong> {marksheet.professorAddress}</p>
             <p><strong>Validated:</strong> {marksheet.isValidated ? "Yes" : "No"}</p>

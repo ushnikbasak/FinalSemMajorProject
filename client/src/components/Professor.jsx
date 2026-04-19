@@ -80,19 +80,22 @@ const Professor = () => {
         if (seen.has(sId)) continue;
         seen.add(sId);
 
-        const m = await contract.methods.viewMarksheet(sId).call();
+        try {
+          const m = await contract.methods.viewMarksheet(sId).call({ from: account });
 
-        if (m.professorAddress === zeroAddress) {
-          // If no professor has claimed this yet, it's pending
-          pending.push(m.studentId);
-        } else if (m.professorAddress.toLowerCase() === account.toLowerCase()) {
-          // If this professor graded it, it goes to their historical tracking
-          uploaded.push({
-            studentId: m.studentId,
-            marks: m.marks,
-            isValidated: m.isValidated,
-            isUploaded: m.isUploaded,
-          });
+          if (m.professorAddress === zeroAddress) {
+            pending.push(m.studentId);
+          } else if (m.professorAddress.toLowerCase() === account.toLowerCase()) {
+            uploaded.push({
+              studentId: m.studentId,
+              marks: m.marks,
+              isValidated: m.isValidated,
+              isUploaded: m.isUploaded,
+            });
+          }
+        } catch (innerErr) {
+          // Prevent a single access denial from crashing the whole loop
+          console.warn(`Skipping student ${sId} - Access denied or record missing.`);
         }
       }
 
