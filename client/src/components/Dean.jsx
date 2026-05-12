@@ -21,8 +21,11 @@ const Dean = () => {
   const [finalizedStudents, setFinalizedStudents] = useState([]);
   const [notFinalizedStudents, setNotFinalizedStudents] = useState([]);
 
+  const [processedRequests, setProcessedRequests] = useState([]);
+
   const [showFinalized, setShowFinalized] = useState(false);
   const [showNotFinalized, setShowNotFinalized] = useState(false);
+  const [showRequests, setShowRequests] = useState(true); // Default to true so Dean sees pending actions
 
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -32,7 +35,11 @@ const Dean = () => {
       if (!contract || !account) return setIsDean(false);
       try {
         const deanAddress = await contract.methods.dean().call();
-        setIsDean(deanAddress.toLowerCase() === account.toLowerCase());
+        const isDeanAccount = deanAddress.toLowerCase() === account.toLowerCase();
+        setIsDean(isDeanAccount);
+        if (isDeanAccount) {
+          fetchVerificationRequests(); // Auto-fetch verification queue
+        }
       } catch (err) {
         console.error("Role check failed:", err);
         setIsDean(false);
@@ -69,6 +76,64 @@ const Dean = () => {
     fetchMarksheet();
   }, [studentId, contract, account]);
 
+  // Fetch Processed Verification Requests 
+  const fetchVerificationRequests = async () => {
+    if (!contract || !account) return;
+
+    try {
+      const count = await contract.methods.getRequestsCount().call();
+      const requests = [];
+
+      for (let i = 0; i < count; i++) {
+        const req = await contract.methods.allRequests(i).call();
+        
+        // Filter: Dean only sees "Processed" (Status 2) requests
+        if (Number(req.status) === 2) {
+          requests.push({
+            index: i,
+            companyName: req.companyName,
+            studentId: req.studentId.toString(),
+            verifier: req.verifier
+          });
+        }
+      }
+      setProcessedRequests(requests.reverse());
+    } catch (err) {
+      console.error("Error fetching verification requests:", err);
+    }
+  };
+
+  // Authorize Request 
+  const handleAuthorizeRequest = async (reqIdx) => {
+    if (!isDean) return;
+    try {
+      setStatus(`Authorizing request #${reqIdx}... Please confirm transaction.`);
+      await contract.methods.authorizeRequest(reqIdx).send({ from: account });
+      setStatus("✅ Request officially authorized. Data unlocked for verifier.");
+      fetchVerificationRequests(); // Refresh the list
+    } catch (err) {
+      console.error("Error authorizing request:", err);
+      setStatus("❌ Failed to authorize request.");
+    }
+  };
+
+  // Reject Request 
+  const handleRejectRequest = async (reqIdx) => {
+    if (!isDean) return;
+    const confirm = window.confirm("Are you sure you want to REJECT this verification request?");
+    if (!confirm) return;
+
+    try {
+      setStatus(`Rejecting request #${reqIdx}...`);
+      await contract.methods.rejectRequest(reqIdx).send({ from: account });
+      setStatus("✅ Request rejected.");
+      fetchVerificationRequests(); // Refresh the list
+    } catch (err) {
+      console.error("Error rejecting request:", err);
+      setStatus("❌ Failed to reject request.");
+    }
+  };
+
   // CSV parsing
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -84,7 +149,7 @@ const Dean = () => {
         // Iterate through rows (expected format: [id, walletAddress])
         for (let i = 0; i < results.data.length; i++) {
           const row = results.data[i];
-          
+
           // Skip empty rows or rows that only contain a blank string
           if (row.length === 0 || (row.length === 1 && !row[0].trim())) continue;
 
@@ -381,6 +446,64 @@ const Dean = () => {
 
       {/* Lists Section */}
       <div className="list-box">
+        
+        {/* FINAL VERIFICATION APPROVALS QUEUE  */}
+        <div className="student-section" /*style={{ borderColor: "#28a745", borderWidth: "2px", borderStyle: "solid", marginBottom: "20px", padding: "10px", borderRadius: "5px" }}*/>
+          <button 
+            className="collapsible-button"
+            onClick={() => {
+              setShowRequests(!showRequests);
+              if (!showRequests) fetchVerificationRequests();
+            }}
+            disabled={!isDean}
+            // style={{ backgroundColor: "#28a745", color: "white", padding: "10px", width: "100%", textAlign: "left", cursor: "pointer", border: "none" }}
+          >
+            🛡️ Final Verification Approvals {showRequests ? "▲" : "▼"}
+          </button>
+
+          {showRequests && (
+            <table className="uploaded-students-table" style={{ width: "100%", marginTop: "10px" }}>
+              <thead>
+                <tr>
+                  <th>Req #</th>
+                  <th>Company</th>
+                  <th>Student ID</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {processedRequests.length > 0 ? (
+                  processedRequests.map((req) => (
+                    <tr key={req.index}>
+                      <td>{req.index}</td>
+                      <td /*style={{ fontWeight: "bold", color: "#333" }}*/>{req.companyName}</td>
+                      <td>{req.studentId}</td>
+                      <td>
+                        <button 
+                          onClick={() => handleAuthorizeRequest(req.index)}
+                          // style={{ backgroundColor: "#007bff", padding: "5px 10px", marginRight: "5px", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
+                        >
+                          Authorize
+                        </button>
+                        <button 
+                          onClick={() => handleRejectRequest(req.index)}
+                          // style={{ backgroundColor: "#dc3545", padding: "5px 10px", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
+                        >
+                          Reject
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4">No pending authorizations.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
         <div className="student-section">
           <button
             className="collapsible-button"

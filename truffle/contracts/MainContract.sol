@@ -10,6 +10,19 @@ contract MainContract
     mapping(uint => Marksheet) public marksheets;
     uint[] public studentList;
 
+    enum RequestStatus { None, Pending, Processed, Authorized, Rejected }
+
+    struct VerificationRequest 
+    {
+        address verifier;
+        string companyName;
+        uint studentId;
+        RequestStatus status;
+    }
+
+    VerificationRequest[] public allRequests;
+    mapping(address => mapping(uint => bool)) public canVerify; // verifierAddress => studentId => isAllowed
+
     struct Marksheet 
     {
         uint studentId;
@@ -48,7 +61,8 @@ contract MainContract
             msg.sender == dean || 
             isProfessor[msg.sender] || 
             isAssociateDean[msg.sender] || 
-            msg.sender == marksheets[_studentId].studentWallet,
+            msg.sender == marksheets[_studentId].studentWallet ||
+            canVerify[msg.sender][_studentId],
             "Caller is not authorized to view this marksheet"
         );
         _;
@@ -159,36 +173,64 @@ contract MainContract
         marksheet.uploadedBy = dean;
     }
 
-    function viewMarksheet(uint _studentId) external view onlyAuthorizedViewer(_studentId) returns (Marksheet memory) 
+    // Verifier asks for permission
+    function requestVerification(uint _studentId, string calldata _companyName) external
     {
-        return marksheets[_studentId];
+        require(bytes(_companyName).length > 0, "Company name is required");
+        require(marksheets[_studentId].studentId != 0, "Student does not exist");
+        require(marksheets[_studentId].isUploaded, "Marksheet is not finalized yet");
+        require(!canVerify[msg.sender][_studentId], "You already have access to this record");
+
+        allRequests.push(VerificationRequest({
+            verifier: msg.sender,
+            companyName: _companyName,
+            studentId: _studentId,
+            status: RequestStatus.Pending
+        }));
     }
 
-    function verify(
-        uint _studentId,
-        uint _marks,
-        address _professorAddress,
-        bool _isValidated,
-        address _validatedBy,
-        uint _timestamp
-    ) external view returns (bool)
+    // Associate Dean processes the request
+    function processRequest(uint _reqIdx) external onlyAssociateDean 
     {
-        Marksheet storage originalMarksheet = marksheets[_studentId];
+        require(_reqIdx < allRequests.length, "Invalid request index");
+        VerificationRequest storage req = allRequests[_reqIdx];
+        require(req.status == RequestStatus.Pending, "Request is not pending");
 
-        if (originalMarksheet.fileHash == bytes32(0))
-        {
-            return false;
-        }
+        req.status = RequestStatus.Processed;
+    }
 
-        bytes32 verificationHash = keccak256(abi.encodePacked(
-            _studentId,
-            _marks,
-            _professorAddress,
-            _isValidated,
-            _validatedBy,
-            _timestamp
-        ));
+    // Dean finalizes and unlocks the record
+    function authorizeRequest(uint _reqIdx) external onlyDean 
+    {
+        require(_reqIdx < allRequests.length, "Invalid request index");
+        VerificationRequest storage req = allRequests[_reqIdx];
+        require(req.status == RequestStatus.Processed, "Request not processed by Assoc. Dean");
 
-        return (verificationHash == originalMarksheet.fileHash);
+        req.status = RequestStatus.Authorized;
+        canVerify[req.verifier][req.studentId] = true;
+    }
+
+    // Function to reject invalid requests
+    function rejectRequest(uint _reqIdx) external 
+    {
+        require(msg.sender == dean || isAssociateDean[msg.sender], "Not authorized to reject");
+        require(_reqIdx < allRequests.length, "Invalid request index");
+        VerificationRequest storage req = allRequests[_reqIdx];
+        require(req.status == RequestStatus.Pending || req.status == RequestStatus.Processed, "Cannot reject this status");
+
+        req.status = RequestStatus.Rejected;
+    }
+
+    // Count of total verification requests
+    function getRequestsCount() external view returns (uint) 
+    {
+        return allRequests.length;
+    }
+
+    // --- Restricted Viewing & Verifying ---
+
+    function viewMarksheet(uint _studentId) external view onlyAuthorizedViewer(_studentId) returns (Marksheet memory)
+    {
+        return marksheets[_studentId];
     }
 }
