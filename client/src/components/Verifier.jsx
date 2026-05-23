@@ -5,7 +5,7 @@ const Verifier = () => {
   const { contract, account } = useContext(Web3Context);
   
   const [studentIdInput, setStudentIdInput] = useState("");
-  const [companyNameInput, setCompanyNameInput] = useState(""); // New State
+  const [companyNameInput, setCompanyNameInput] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [myRequests, setMyRequests] = useState([]);
   const [viewedRecord, setViewedRecord] = useState(null);
@@ -31,7 +31,7 @@ const Verifier = () => {
         if (req.verifier.toLowerCase() === account.toLowerCase()) {
           requests.push({
             index: i,
-            companyName: req.companyName, // Fetching the new field
+            companyName: req.companyName,
             studentId: req.studentId.toString(),
             status: Number(req.status)
           });
@@ -67,7 +67,7 @@ const Verifier = () => {
       
       setStatusMsg("✅ Request submitted! Awaiting University approval.");
       setStudentIdInput("");
-      setCompanyNameInput(""); // Clear the input
+      setCompanyNameInput(""); 
       
       fetchMyRequests();
     } catch (err) {
@@ -88,6 +88,16 @@ const Verifier = () => {
       console.error("Error viewing record:", err);
       setStatusMsg("❌ Access Denied. You may not be authorized yet.");
     }
+  };
+
+  // Aggregate Calculation Helper for the Verifier View
+  const calculatePercentage = (record) => {
+    if (!record || record.results.length === 0) return 0;
+    let total = 0;
+    record.results.forEach(res => {
+      total += (Number(res.marks) - 1); 
+    });
+    return (total / record.results.length).toFixed(2);
   };
 
   return (
@@ -124,20 +134,44 @@ const Verifier = () => {
       </div>
 
       {viewedRecord && (
-        <div className="upload-form" /*style={{ backgroundColor: "#e8f5e9", border: "1px solid #c8e6c9", marginBottom: "20px" }}*/>
-          <h4 /*style={{ color: "#2e7d32", borderBottom: "2px solid #2e7d32", paddingBottom: "5px" }}*/>
+        <div className="upload-form" style={{ backgroundColor: "#e8f5e9", border: "1px solid #c8e6c9", marginBottom: "20px", textAlign: "left", padding: "20px" }}>
+          <h4 style={{ color: "#2e7d32", borderBottom: "2px solid #2e7d32", paddingBottom: "10px", marginTop: 0 }}>
             🎓 Official University Transcript
           </h4>
-          <p><strong>Student ID:</strong> {viewedRecord.studentId.toString()}</p>
-          <p /*style={{ fontSize: "1.2em", color: "#1b5e20" }}*/>
-            <strong>Final Marks:</strong> {viewedRecord.marks.toString()}
-          </p>
-          <p><strong>Evaluating Professor:</strong> {viewedRecord.professorAddress}</p>
-          <p><strong>Associate Dean Verifier:</strong> {viewedRecord.validatedBy}</p>
-          <p><strong>Finalizing Dean:</strong> {viewedRecord.uploadedBy}</p>
-          <p><strong>Verification Date:</strong> {new Date(Number(viewedRecord.timestamp) * 1000).toLocaleString()}</p>
           
-          <button onClick={() => setViewedRecord(null)} style={{ marginTop: "10px", backgroundColor: "#666" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
+            <p style={{ margin: "5px 0" }}><strong>Student ID:</strong> {viewedRecord.studentId.toString()}</p>
+            <p style={{ margin: "5px 0" }}><strong>Aggregate:</strong> <span style={{ fontSize: "1.2em", fontWeight: "bold", color: "#1b5e20" }}>{calculatePercentage(viewedRecord)}%</span></p>
+          </div>
+
+          <table className="uploaded-students-table" style={{ width: "100%", marginBottom: "20px" }}>
+            <thead>
+              <tr>
+                <th>Subject Code</th>
+                <th>Professor Address</th>
+                <th>Final Marks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {viewedRecord.results.map((res, index) => (
+                <tr key={index}>
+                  <td><strong>{res.subjectId}</strong></td>
+                  <td style={{ fontSize: "0.85em", color: "#555" }}>{res.professor}</td>
+                  <td style={{ fontWeight: "bold", fontSize: "1.1em", color: "#1b5e20" }}>{Number(res.marks) - 1}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Integrity Seal */}
+          <div style={{ backgroundColor: "#ffffff", padding: "15px", border: "1px dashed #a5d6a7", borderRadius: "5px", fontSize: "0.9em", color: "#444" }}>
+            <p style={{ margin: "0 0 5px 0", textTransform: "uppercase", fontWeight: "bold", color: "#388e3c" }}>🔒 Verified Blockchain Record</p>
+            <p style={{ margin: "3px 0" }}><strong>Validated By (Associate Dean):</strong> {viewedRecord.validatedBy}</p>
+            <p style={{ margin: "3px 0" }}><strong>Finalized By (Dean Academics):</strong> {viewedRecord.uploadedBy}</p>
+            <p style={{ margin: "3px 0" }}><strong>Verification Date:</strong> {new Date(Number(viewedRecord.timestamp) * 1000).toLocaleString()}</p>
+          </div>
+          
+          <button onClick={() => setViewedRecord(null)} style={{ marginTop: "15px", backgroundColor: "#666", width: "100%" }}>
             Close Record
           </button>
         </div>
@@ -170,10 +204,14 @@ const Verifier = () => {
                     <button 
                       onClick={() => handleViewRecord(req.studentId)}
                       disabled={req.status !== 3}
-                      // style={{
-                      //   backgroundColor: req.status === 3 ? "#007bff" : "#ccc",
-                      //   cursor: req.status === 3 ? "pointer" : "not-allowed"
-                      // }}
+                      style={{
+                        backgroundColor: req.status === 3 ? "#007bff" : "#ccc",
+                        cursor: req.status === 3 ? "pointer" : "not-allowed",
+                        padding: "5px 10px",
+                        border: "none",
+                        color: "white",
+                        borderRadius: "3px"
+                      }}
                     >
                       {req.status === 3 ? "View Record" : "Locked"}
                     </button>

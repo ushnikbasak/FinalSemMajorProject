@@ -10,17 +10,26 @@ const Dean = () => {
   const [status, setStatus] = useState("");
   const [isDean, setIsDean] = useState(false);
 
+  // CSV Parsing State (Updated for 2D Subjects Array)
   const [parsedIds, setParsedIds] = useState([]);
   const [parsedWallets, setParsedWallets] = useState([]);
+  const [parsedSubjects, setParsedSubjects] = useState([]);
   const [batchStatus, setBatchStatus] = useState("");
 
+  // Role Management State
   const [newProfAddress, setNewProfAddress] = useState("");
   const [newAssocDeanAddress, setNewAssocDeanAddress] = useState("");
   const [roleChangeStatus, setRoleChangeStatus] = useState("");
 
+  // Catalog & Assignment State
+  const [newSubjectId, setNewSubjectId] = useState("");
+  const [catalogStatus, setCatalogStatus] = useState("");
+  const [assignProfAddress, setAssignProfAddress] = useState("");
+  const [assignSubjectId, setAssignSubjectId] = useState("");
+  const [assignStatus, setAssignStatus] = useState("");
+
   const [finalizedStudents, setFinalizedStudents] = useState([]);
   const [notFinalizedStudents, setNotFinalizedStudents] = useState([]);
-
   const [processedRequests, setProcessedRequests] = useState([]);
 
   const [showFinalized, setShowFinalized] = useState(false);
@@ -38,7 +47,7 @@ const Dean = () => {
         const isDeanAccount = deanAddress.toLowerCase() === account.toLowerCase();
         setIsDean(isDeanAccount);
         if (isDeanAccount) {
-          fetchVerificationRequests(); // Auto-fetch verification queue
+          fetchVerificationRequests();
         }
       } catch (err) {
         console.error("Role check failed:", err);
@@ -56,7 +65,8 @@ const Dean = () => {
       try {
         const result = await contract.methods.viewMarksheet(studentId).call({ from: account });
 
-        if (result.professorAddress === zeroAddress) {
+        // A student exists if they have a wallet address bound to them
+        if (result.studentWallet === zeroAddress) {
           setMarksheet(null);
           setStatus("Marksheet not found for this Student ID.");
         } else {
@@ -86,7 +96,7 @@ const Dean = () => {
 
       for (let i = 0; i < count; i++) {
         const req = await contract.methods.allRequests(i).call();
-        
+
         // Filter: Dean only sees "Processed" (Status 2) requests
         if (Number(req.status) === 2) {
           requests.push({
@@ -110,7 +120,7 @@ const Dean = () => {
       setStatus(`Authorizing request #${reqIdx}... Please confirm transaction.`);
       await contract.methods.authorizeRequest(reqIdx).send({ from: account });
       setStatus("✅ Request officially authorized. Data unlocked for verifier.");
-      fetchVerificationRequests(); // Refresh the list
+      fetchVerificationRequests();
     } catch (err) {
       console.error("Error authorizing request:", err);
       setStatus("❌ Failed to authorize request.");
@@ -134,7 +144,7 @@ const Dean = () => {
     }
   };
 
-  // CSV parsing
+  // CSV Parsing
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -143,30 +153,32 @@ const Dean = () => {
       complete: (results) => {
         const ids = [];
         const wallets = [];
+        const subjects = []; // 2D array for subjects
         let hasError = false;
         let errorMessage = "";
 
-        // Iterate through rows (expected format: [id, walletAddress])
+        // Iterate through rows: Expected format: [id, walletAddress, Sub1, Sub2, Sub3...]
         for (let i = 0; i < results.data.length; i++) {
           const row = results.data[i];
 
           // Skip empty rows or rows that only contain a blank string
           if (row.length === 0 || (row.length === 1 && !row[0].trim())) continue;
 
-          // Check if row has at least 2 columns
-          if (row.length < 2) {
+          if (row.length < 3) {
             hasError = true;
-            errorMessage = `Row ${i + 1} is missing data. Expected ID and Wallet Address.`;
+            errorMessage = `Row ${i + 1} is missing data. Expected ID, Wallet, and at least one Subject ID.`;
             break;
           }
 
           const id = parseInt(row[0], 10);
           const wallet = row[1] ? row[1].trim() : "";
+          
+          // Slice from index 2 onwards to grab an infinite number of subjects
+          const studentSubjects = row.slice(2).map(s => s.trim()).filter(s => s !== "");
 
-          // Validate ID
           if (isNaN(id) || id <= 0) {
             hasError = true;
-            errorMessage = `Invalid ID (0, negative, or not a number) at row ${i + 1}.`;
+            errorMessage = `Invalid ID at row ${i + 1}.`;
             break;
           }
 
@@ -177,13 +189,21 @@ const Dean = () => {
             break;
           }
 
+          if (studentSubjects.length === 0) {
+            hasError = true;
+            errorMessage = `No valid subjects found at row ${i + 1}.`;
+            break;
+          }
+
           ids.push(id);
           wallets.push(wallet);
+          subjects.push(studentSubjects);
         }
 
         if (hasError) {
           setParsedIds([]);
           setParsedWallets([]);
+          setParsedSubjects([]);
           document.getElementById("csv-upload-input").value = "";
           setBatchStatus(`❌ Upload failed: ${errorMessage}`);
           return;
@@ -196,9 +216,8 @@ const Dean = () => {
 
         setParsedIds(ids);
         setParsedWallets(wallets);
-        setBatchStatus(
-          `Parsed ${ids.length} valid Student records ready for registration.`
-        );
+        setParsedSubjects(subjects);
+        setBatchStatus(`Parsed ${ids.length} valid Student records ready for registration.`);
       },
       header: false,
       skipEmptyLines: true,
@@ -212,22 +231,22 @@ const Dean = () => {
     try {
       setBatchStatus("Processing transaction. Please confirm in wallet...");
 
+      // Send the 3 arrays, including the 2D subjects array
       await contract.methods
-        .registerStudents(parsedIds, parsedWallets)
+        .registerStudents(parsedIds, parsedWallets, parsedSubjects)
         .send({ from: account });
 
-      setBatchStatus(
-        `✅ Successfully registered ${parsedIds.length} students.`
-      );
+      setBatchStatus(`✅ Successfully registered ${parsedIds.length} students with their subjects.`);
 
       setParsedIds([]);
       setParsedWallets([]);
+      setParsedSubjects([]);
       document.getElementById("csv-upload-input").value = "";
 
       fetchStudentLists();
     } catch (err) {
       console.error("Batch registration failed:", err);
-      setBatchStatus("❌ Batch registration failed. Check console.");
+      setBatchStatus("❌ Batch registration failed. Ensure all subjects exist in the catalog.");
     }
   };
 
@@ -237,12 +256,9 @@ const Dean = () => {
 
     try {
       await contract.methods.finalUpload(studentId).send({ from: account });
-
       setStatus("✅ Marksheet finalized and uploaded.");
-
       const updated = await contract.methods.viewMarksheet(studentId).call({ from: account });
       setMarksheet(updated);
-
       fetchStudentLists();
     } catch (err) {
       console.error("Final upload failed:", err);
@@ -255,7 +271,6 @@ const Dean = () => {
 
     try {
       const length = await contract.methods.studentListLength().call();
-
       const finalized = [];
       const notFinalized = [];
       const seen = new Set();
@@ -268,23 +283,13 @@ const Dean = () => {
 
         try {
           const m = await contract.methods.viewMarksheet(id).call({ from: account });
-
-          if (m.professorAddress === zeroAddress) continue;
-
+          
           if (m.isUploaded) {
-            finalized.push({
-              studentId: m.studentId,
-              studentWallet: m.studentWallet, 
-              marks: m.marks,
-              professorAddress: m.professorAddress,
-              validatedBy: m.validatedBy,
-              timestamp: m.timestamp,
-            });
+            finalized.push(m);
           } else if (m.isValidated && !m.isUploaded) {
             notFinalized.push(m.studentId);
           }
         } catch (innerErr) {
-          // Prevent a single error from crashing the entire loop
           console.warn(`Skipping student ${id} - Access denied or missing.`);
         }
       }
@@ -293,6 +298,58 @@ const Dean = () => {
       setNotFinalizedStudents(notFinalized);
     } catch (err) {
       console.error("Error fetching student lists:", err);
+    }
+  };
+
+  // CATALOG MANAGEMENT FUNCTIONS
+  const handleAddCatalog = async () => {
+    if (!newSubjectId) return setCatalogStatus("❌ Please enter a subject ID.");
+    try {
+      await contract.methods.addSubjectToCatalog(newSubjectId).send({ from: account });
+      setCatalogStatus(`✅ Subject ${newSubjectId} added to catalog.`);
+      setNewSubjectId("");
+    } catch (err) {
+      console.error(err);
+      setCatalogStatus("❌ Failed to add subject.");
+    }
+  };
+
+  const handleRemoveCatalog = async () => {
+    if (!newSubjectId) return setCatalogStatus("❌ Please enter a subject ID.");
+    try {
+      await contract.methods.removeSubjectFromCatalog(newSubjectId).send({ from: account });
+      setCatalogStatus(`✅ Subject ${newSubjectId} deactivated.`);
+      setNewSubjectId("");
+    } catch (err) {
+      console.error(err);
+      setCatalogStatus("❌ Failed to remove subject.");
+    }
+  };
+
+  // PROFESSOR ASSIGNMENT
+  const handleAssignProf = async () => {
+    if (!assignProfAddress || !assignSubjectId) return setAssignStatus("❌ Fill both fields.");
+    try {
+      await contract.methods.assignSubjectToProfessor(assignProfAddress, assignSubjectId).send({ from: account });
+      setAssignStatus(`✅ Assigned ${assignSubjectId} to Professor.`);
+      setAssignProfAddress("");
+      setAssignSubjectId("");
+    } catch (err) {
+      console.error(err);
+      setAssignStatus("❌ Failed to assign subject. Is prof registered? Is subject in catalog?");
+    }
+  };
+
+  const handleRevokeProf = async () => {
+    if (!assignProfAddress || !assignSubjectId) return setAssignStatus("❌ Fill both fields.");
+    try {
+      await contract.methods.revokeSubjectFromProfessor(assignProfAddress, assignSubjectId).send({ from: account });
+      setAssignStatus(`✅ Revoked ${assignSubjectId} from Professor.`);
+      setAssignProfAddress("");
+      setAssignSubjectId("");
+    } catch (err) {
+      console.error(err);
+      setAssignStatus("❌ Failed to revoke subject.");
     }
   };
 
@@ -373,16 +430,14 @@ const Dean = () => {
       {/* CSV Upload */}
       <div className="upload-form" style={{ marginBottom: "20px", padding: "15px", backgroundColor: "#f9f9f9", borderRadius: "8px" }}>
         <h4>Batch Register Students (CSV)</h4>
-        <p style={{fontSize: "0.85em", color: "#666"}}>Format: Student ID, Wallet Address</p>
+        <p style={{fontSize: "0.85em", color: "#666"}}>Format: Student ID, Wallet Address, Subject1, Subject2...</p>
 
         <input
           id="csv-upload-input"
           type="file"
           accept=".csv"
           onChange={handleFileUpload}
-          onClick={(e) => {
-            e.target.value = null; 
-          }}
+          onClick={(e) => { e.target.value = null; }}
           disabled={!isDean}
         />
 
@@ -390,22 +445,15 @@ const Dean = () => {
           <div style={{ marginTop: "10px" }}>
             <p>
               <strong>Preview First 5:</strong>{" "}
-              {parsedIds.slice(0, 5).map((id, index) => `${id} (${parsedWallets[index].slice(0, 6)}...${parsedWallets[index].slice(-4)})`).join(", ")}
+              {parsedIds.slice(0, 5).map((id, index) => `${id} [${parsedSubjects[index].join(", ")}]`).join(" | ")}
               {parsedIds.length > 5 ? ' ...' : ''}
             </p>
-
             <button onClick={handleBatchRegister} disabled={!isDean}>
               Register {parsedIds.length} Students
             </button>
           </div>
         )}
-
-        {!isDean && (
-          <p style={{ color: "red" }}>
-            Only the dean can batch register students.
-          </p>
-        )}
-
+        {!isDean && <p style={{ color: "red" }}>Only the dean can batch register students.</p>}
         <p className="status-message">{batchStatus}</p>
       </div>
 
@@ -420,24 +468,29 @@ const Dean = () => {
           onChange={(e) => setStudentId(e.target.value)}
         />
 
-        {marksheet && marksheet.professorAddress !== zeroAddress && (
-          <div className="marksheet-details">
+        {marksheet && marksheet.studentWallet !== zeroAddress && (
+          <div className="marksheet-details" style={{ textAlign: "left", padding: "10px", backgroundColor: "#fff", border: "1px solid #ccc", marginTop: "10px" }}>
             <p><strong>Marksheet Details (from blockchain)</strong></p>
-            <p><strong>Student ID:</strong> {marksheet.studentId}</p>
-            <p><strong>Student Wallet:</strong> {marksheet.studentWallet}</p>
-            <p><strong>Marks:</strong> {marksheet.marks}</p>
-            <p><strong>Professor Address:</strong> {marksheet.professorAddress}</p>
+            <p><strong>Student ID:</strong> {marksheet.studentId.toString()}</p>
+            <p><strong>Wallet:</strong> {marksheet.studentWallet}</p>
             <p><strong>Validated:</strong> {marksheet.isValidated ? "Yes" : "No"}</p>
             <p><strong>Validated By:</strong> {marksheet.validatedBy}</p>
-            <p><strong>Validation Timestamp:</strong> {marksheet.timestamp}</p>
             <p><strong>Finalized:</strong> {marksheet.isUploaded ? "Yes" : "No"}</p>
+            
+            <hr />
+            <p><strong>Subject Results:</strong></p>
+            <ul style={{ listStyleType: "none", paddingLeft: "0" }}>
+              {marksheet.results.map((res, idx) => (
+                <li key={idx} style={{ marginBottom: "5px", padding: "5px", backgroundColor: "#f1f1f1", borderRadius: "4px" }}>
+                  <strong>{res.subjectId}:</strong> {res.marks.toString() === "0" ? "Ungraded" : Number(res.marks) - 1} 
+                  <br/><span style={{ fontSize: "0.85em", color: "#555" }}>Prof: {res.professor === zeroAddress ? "Pending" : res.professor}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-        <button
-          onClick={handleFinalize}
-          disabled={!isDean || !marksheet || !marksheet.isValidated || marksheet.isUploaded}
-        >
+        <button onClick={handleFinalize} disabled={!isDean || !marksheet || !marksheet.isValidated || marksheet.isUploaded} style={{ marginTop: "10px" }}>
           Finalize Marksheet
         </button>
 
@@ -446,9 +499,8 @@ const Dean = () => {
 
       {/* Lists Section */}
       <div className="list-box">
-        
         {/* FINAL VERIFICATION APPROVALS QUEUE  */}
-        <div className="student-section" /*style={{ borderColor: "#28a745", borderWidth: "2px", borderStyle: "solid", marginBottom: "20px", padding: "10px", borderRadius: "5px" }}*/>
+        <div className="student-section">
           <button 
             className="collapsible-button"
             onClick={() => {
@@ -456,7 +508,6 @@ const Dean = () => {
               if (!showRequests) fetchVerificationRequests();
             }}
             disabled={!isDean}
-            // style={{ backgroundColor: "#28a745", color: "white", padding: "10px", width: "100%", textAlign: "left", cursor: "pointer", border: "none" }}
           >
             🛡️ Final Verification Approvals {showRequests ? "▲" : "▼"}
           </button>
@@ -476,28 +527,16 @@ const Dean = () => {
                   processedRequests.map((req) => (
                     <tr key={req.index}>
                       <td>{req.index}</td>
-                      <td /*style={{ fontWeight: "bold", color: "#333" }}*/>{req.companyName}</td>
+                      <td>{req.companyName}</td>
                       <td>{req.studentId}</td>
                       <td>
-                        <button 
-                          onClick={() => handleAuthorizeRequest(req.index)}
-                          // style={{ backgroundColor: "#007bff", padding: "5px 10px", marginRight: "5px", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
-                        >
-                          Authorize
-                        </button>
-                        <button 
-                          onClick={() => handleRejectRequest(req.index)}
-                          // style={{ backgroundColor: "#dc3545", padding: "5px 10px", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
-                        >
-                          Reject
-                        </button>
+                        <button onClick={() => handleAuthorizeRequest(req.index)}>Authorize</button>
+                        <button onClick={() => handleRejectRequest(req.index)}>Reject</button>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="4">No pending authorizations.</td>
-                  </tr>
+                  <tr><td colSpan="4">No pending authorizations.</td></tr>
                 )}
               </tbody>
             </table>
@@ -505,44 +544,24 @@ const Dean = () => {
         </div>
 
         <div className="student-section">
-          <button
-            className="collapsible-button"
-            onClick={() => {
-              setShowNotFinalized(!showNotFinalized);
-              if (!showNotFinalized) fetchStudentLists();
-            }}
-          >
+          <button className="collapsible-button" onClick={() => { setShowNotFinalized(!showNotFinalized); if (!showNotFinalized) fetchStudentLists(); }}>
             ❌ Not Finalized Students {showNotFinalized ? "▲" : "▼"}
           </button>
-
           {showNotFinalized && (
             <table className="uploaded-students-table">
-              <thead>
-                <tr>
-                  <th>Student ID</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
               <tbody>
                 {notFinalizedStudents.length > 0 ? (
                   notFinalizedStudents.map((id, i) => (
                     <tr key={i}>
                       <td>{id}</td>
                       <td>
-                        <button 
-                        onClick={() => {
-                          setStudentId(id);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}>
-                          Show Details
-                        </button>
+                        <button onClick={() => { setStudentId(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Show Details</button>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="2">No validated students pending finalization.</td>
-                  </tr>
+                  <tr><td colSpan="2">No validated students pending finalization.</td></tr>
                 )}
               </tbody>
             </table>
@@ -550,44 +569,24 @@ const Dean = () => {
         </div>
 
         <div className="student-section">
-          <button
-            className="collapsible-button"
-            onClick={() => {
-              setShowFinalized(!showFinalized);
-              if (!showFinalized) fetchStudentLists();
-            }}
-          >
+          <button className="collapsible-button" onClick={() => { setShowFinalized(!showFinalized); if (!showFinalized) fetchStudentLists(); }}>
             ✅ Finalized Students {showFinalized ? "▲" : "▼"}
           </button>
-
           {showFinalized && (
             <table className="uploaded-students-table">
-              <thead>
-                <tr>
-                  <th>Student ID</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
               <tbody>
                 {finalizedStudents.length > 0 ? (
                   finalizedStudents.map((s, i) => (
                     <tr key={i}>
-                      <td>{s.studentId}</td>
+                      <td>{s.studentId.toString()}</td>
                       <td>
-                        <button 
-                        onClick={() => {
-                          setStudentId(s.studentId);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}>
-                          Show Details
-                        </button>
+                        <button onClick={() => { setStudentId(s.studentId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Show Details</button>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="2">No finalized students available.</td>
-                  </tr>
+                  <tr><td colSpan="2">No finalized students available.</td></tr>
                 )}
               </tbody>
             </table>
@@ -596,34 +595,38 @@ const Dean = () => {
       </div>
       <hr></hr>
 
+      {/* Dynamic Catalog & Assignment Section */}
+      <div className="role-management-box">
+        <h4>Subject Catalog & Teaching Load</h4>
+        <div className="list-box">
+          <input type="text" placeholder="Subject ID (e.g., T801)" value={newSubjectId} onChange={(e) => setNewSubjectId(e.target.value.toUpperCase())} />
+          <button onClick={handleAddCatalog}>＋ Add to Catalog</button>
+          <button onClick={handleRemoveCatalog}>－ Remove from Catalog</button>
+          <p className="status-message">{catalogStatus}</p>
+
+          <hr />
+
+          <input type="text" placeholder="Professor Address" value={assignProfAddress} onChange={(e) => setAssignProfAddress(e.target.value)} />
+          <input type="text" placeholder="Subject ID (e.g., T801)" value={assignSubjectId} onChange={(e) => setAssignSubjectId(e.target.value.toUpperCase())} />
+          <button onClick={handleAssignProf}>Assign Subject to Prof</button>
+          <button onClick={handleRevokeProf}>Revoke Subject</button>
+          <p className="status-message">{assignStatus}</p>
+        </div>
+      </div>
+      <hr></hr>
+
       {/* Role Management Section */}
       <div className="role-management-box">
-        <h4>Manage Roles</h4>
-
+        <h4>Manage Roles (Whitelist)</h4>
         <div className="list-box">
-            <input
-              type="text"
-              placeholder="Professor Address"
-              value={newProfAddress}
-              onChange={(e) => setNewProfAddress(e.target.value)}
-            />
-            
-            <button onClick={handleAddProfessor}>＋ Add Professor</button>
-            <button onClick={handleRemoveProfessor}>－ Remove Professor</button>
-          
-            <hr></hr>
-
-            <input
-              type="text"
-              placeholder="Associate Dean Address"
-              value={newAssocDeanAddress}
-              onChange={(e) => setNewAssocDeanAddress(e.target.value)}
-            />
-
+            <input type="text" placeholder="Professor Address" value={newProfAddress} onChange={(e) => setNewProfAddress(e.target.value)} />
+            <button onClick={handleAddProfessor}>＋ Add Professor Role</button>
+            <button onClick={handleRemoveProfessor}>－ Remove Professor Role</button>
+            <hr />
+            <input type="text" placeholder="Associate Dean Address" value={newAssocDeanAddress} onChange={(e) => setNewAssocDeanAddress(e.target.value)} />
             <button onClick={handleAddAssociateDean}>＋ Add Associate Dean</button>
             <button onClick={handleRemoveAssociateDean}>－ Remove Associate Dean</button>
         </div>
-
         <p className="status-message">{roleChangeStatus}</p>
       </div>
     </div>

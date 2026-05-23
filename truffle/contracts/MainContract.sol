@@ -23,16 +23,27 @@ contract MainContract
     VerificationRequest[] public allRequests;
     mapping(address => mapping(uint => bool)) public canVerify; // verifierAddress => studentId => isAllowed
 
+    // The Subject Catalog: Maps a Subject ID string to true/false (Valid/Invalid)
+    mapping(string => bool) public isValidSubject;
+
+    // Tracks which professor is allowed to grade which subject
+    mapping(address => mapping(string => bool)) public professorPermissions;
+
+    struct SubjectResult 
+    {
+        string subjectId;
+        uint marks; // Stored as marks + 1 (0 = not graded by professor yet)
+        address professor;
+    }
+
     struct Marksheet 
     {
         uint studentId;
         address studentWallet;
-        uint marks;
-        address professorAddress;
+        SubjectResult[] results; // Dynamic array: handles 1 or multiple subjects
         bool isValidated;
         address validatedBy;
         uint timestamp;
-        bytes32 fileHash;
         bool isUploaded;
         address uploadedBy;
     }
@@ -73,6 +84,24 @@ contract MainContract
         dean = msg.sender;
     }
 
+    
+    // Adds a new subject code (e.g., "CS801") to the official subject catalog
+    function addSubjectToCatalog(string calldata _subjectId) external onlyDean 
+    {
+        require(bytes(_subjectId).length > 0, "Subject ID cannot be empty");
+        require(!isValidSubject[_subjectId], "Subject already exists in catalog");
+        
+        isValidSubject[_subjectId] = true;
+    }
+
+    // Deactivates a subject in the catalog, preventing new student registrations
+    function removeSubjectFromCatalog(string calldata _subjectId) external onlyDean 
+    {
+        require(isValidSubject[_subjectId], "Subject is not in the catalog");
+
+        isValidSubject[_subjectId] = false;
+    }
+
     function addProfessor(address _professor) external onlyDean 
     {
         require(_professor != address(0), "Invalid address");
@@ -85,6 +114,25 @@ contract MainContract
         require(_professor != address(0), "Invalid address");
         require(isProfessor[_professor], "Not a professor");
         isProfessor[_professor] = false;
+    }
+
+    // Grants a registered professor the right to upload marks for a specific subject
+    function assignSubjectToProfessor(address _professor, string calldata _subjectId) external onlyDean 
+    {
+        require(isProfessor[_professor], "Address is not a registered professor");
+        require(isValidSubject[_subjectId], "Subject does not exist in the catalog");
+
+        professorPermissions[_professor][_subjectId] = true;
+    }
+
+    // Revokes a professor's right to upload marks for a specific subject
+    function revokeSubjectFromProfessor(address _professor, string calldata _subjectId) external onlyDean 
+    {
+        require(isProfessor[_professor], "Address is not a registered professor");
+        require(isValidSubject[_subjectId], "Subject does not exist in the catalog");
+        require(professorPermissions[_professor][_subjectId], "Professor is not assigned to this subject");
+
+        professorPermissions[_professor][_subjectId] = false;
     }
 
     function addAssociateDean(address _associateDean) external onlyDean 
@@ -106,61 +154,90 @@ contract MainContract
         return studentList.length;
     }
 
-    function registerStudents(uint[] calldata _studentIds, address[] calldata _studentWallets) external onlyDean 
+    function registerStudents(
+        uint[] calldata _studentIds, 
+        address[] calldata _studentWallets,
+        string[][] calldata _studentSubjects // 2D array for variable subjects
+    ) external onlyDean
     {
-        require(_studentIds.length == _studentWallets.length, "Mismatched array lengths");
+        require(_studentIds.length == _studentWallets.length, "Mismatched arrays: Wallets");
+        require(_studentIds.length == _studentSubjects.length, "Mismatched arrays: Subjects");
 
         for (uint i = 0; i < _studentIds.length; i++) 
         {
             uint id = _studentIds[i];
-            address wallet = _studentWallets[i];
-
             require(id != 0, "Invalid student ID");
-            require(wallet != address(0), "Invalid student wallet address");
+            require(_studentWallets[i] != address(0), "Invalid student wallet");
             require(marksheets[id].studentId == 0, "Student already registered");
 
             marksheets[id].studentId = id;
-            marksheets[id].studentWallet = wallet;
+            marksheets[id].studentWallet = _studentWallets[i];
+
+            // Push an empty grading placeholder for each subject this student takes
+            for (uint j = 0; j < _studentSubjects[i].length; j++)
+            {
+                // Ensure the subject exists in the catalog
+                require(isValidSubject[_studentSubjects[i][j]], "Cannot register: Subject not in catalog");
+
+                marksheets[id].results.push(SubjectResult({
+                    subjectId: _studentSubjects[i][j],
+                    marks: 0, // 0 = ungraded
+                    professor: address(0)
+                }));
+            }
 
             studentList.push(id);
         }
     }
 
-    function upload(uint _studentId, uint _marks) external onlyProfessor 
+    function upload(uint _studentId, string calldata _subjectID, uint _marks) external onlyProfessor 
     {
+        require(professorPermissions[msg.sender][_subjectID], "Not authorized for this subject");
+        require(_marks <= 100, "Marks must be between 0 and 100");
+        
         Marksheet storage marksheet = marksheets[_studentId];
-
         require(marksheet.studentId != 0, "Student not registered");
-        require(marksheet.professorAddress == address(0), "Marks already uploaded");
 
-        marksheet.marks = _marks;
-        marksheet.professorAddress = msg.sender;
+        bool subjectFound = false;
+        
+        // Search the student's dynamic array for the specific subject
+        for (uint i = 0; i < marksheet.results.length; i++) 
+        {
+            if (keccak256(bytes(marksheet.results[i].subjectId)) == keccak256(bytes(_subjectID)))
+            {
+                require(marksheet.results[i].marks == 0, "This subject is already graded");
+                
+                marksheet.results[i].marks = _marks + 1; // Sentinel value offsetting
+                marksheet.results[i].professor = msg.sender;
+                
+                subjectFound = true;
+                break;
+            }
+        }
+
+        require(subjectFound, "Student is not registered for this subject");
     }
 
     function validate(uint _studentId, uint _nonce) external onlyAssociateDean 
     {
         Marksheet storage marksheet = marksheets[_studentId];
-        require(marksheet.professorAddress != address(0), "Marksheet does not exist");
+        require(marksheet.studentId != 0, "Student not registered");
         require(!marksheet.isValidated, "Marksheet already validated");
+        require(marksheet.results.length > 0, "Student has no registered subjects");
 
-        bytes32 verificationHash = keccak256(abi.encodePacked(_nonce, marksheet.studentId, marksheet.marks, marksheet.professorAddress));
+        // Loop through all subjects to ensure none are 0(ungraded)
+        for (uint i = 0; i < marksheet.results.length; i++) 
+        {
+            require(marksheet.results[i].marks > 0, "Not all subjects have been graded yet");
+        }
 
-        // Check PoW: first byte of the hash must be 0.
+        // Check PoW: first byte of the hash must be 0
+        bytes32 verificationHash = keccak256(abi.encodePacked(_nonce, marksheet.studentId, "Validation"));
         require(verificationHash[0] == 0, "Proof of Work is invalid: first byte is not zero");
 
         marksheet.isValidated = true;
         marksheet.validatedBy = msg.sender;
         marksheet.timestamp = block.timestamp;
-
-        // Calculate and store the final fileHash of the validated data.
-        marksheet.fileHash = keccak256(abi.encodePacked(
-            marksheet.studentId,
-            marksheet.marks,
-            marksheet.professorAddress,
-            marksheet.isValidated,
-            marksheet.validatedBy,
-            marksheet.timestamp
-        ));
     }
 
     function finalUpload(uint _studentId) external onlyDean 
