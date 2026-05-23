@@ -11,12 +11,19 @@ const Professor = () => {
   const [activeSubjectTab, setActiveSubjectTab] = useState("");
   const [status, setStatus] = useState("");
 
-  // Manual Input State
+  // UI Mode Toggle
+  const [inputMode, setInputMode] = useState("single"); // "single" or "batch"
+
+  // Single Manual Input State
   const [studentId, setStudentId] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [dropdownSubjects, setDropdownSubjects] = useState([]);
   const [marks, setMarks] = useState("");
   const [gradedRecordInfo, setGradedRecordInfo] = useState(null);
+
+  // Batch CSV Input State
+  const [batchSubject, setBatchSubject] = useState("");
+  const [csvFile, setCsvFile] = useState(null);
 
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -77,13 +84,14 @@ const Professor = () => {
       // Default to the first authorized subject for the lists
       if (!activeSubjectTab && authSubjects.length > 0) {
         setActiveSubjectTab(authSubjects[0]);
+        setBatchSubject(authSubjects[0]);
       }
     } catch (err) {
       console.error("Error fetching student data:", err.message);
     }
   };
 
-  // 3. Smart Dropdown & Record Detection Logic
+  // 3. Smart Dropdown Logic (For Single Upload)
   useEffect(() => {
     if (!studentId) {
       setDropdownSubjects([]);
@@ -131,7 +139,7 @@ const Professor = () => {
     }
   }, [studentId, selectedSubject, allStudentsData, authorizedSubjects]);
 
-  // 4. Upload Logic
+  // 4A. Single Upload Logic
   const handleUpload = async () => {
     if (!isProfessor) return setStatus("❌ Unauthorized.");
     if (!studentId || !selectedSubject || marks === "") return alert("Please fill all fields");
@@ -141,7 +149,6 @@ const Professor = () => {
 
     try {
       setStatus("Processing transaction...");
-      // Contract handles the +1 logic internally!
       await contract.methods.upload(studentId, selectedSubject, numericMarks).send({ from: account });
       
       setStatus(`✅ Marksheet uploaded successfully for ${selectedSubject}!`);
@@ -154,11 +161,75 @@ const Professor = () => {
     }
   };
 
-  // Marks Validation Checks
+  // 4B. Batch CSV Upload Logic
+  const handleBatchUpload = async () => {
+    if (!isProfessor) return setStatus("❌ Unauthorized.");
+    if (!csvFile) return alert("Please select a CSV file.");
+    if (!batchSubject) return alert("Please select a subject.");
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const rows = text.split('\n').map(row => row.trim()).filter(row => row !== "");
+      
+      let parsedIds = [];
+      let parsedMarks = [];
+      let errors = [];
+
+      // Check if row 1 is a header
+      let startIndex = isNaN(rows[0].split(',')[0]) ? 1 : 0;
+
+      for (let i = startIndex; i < rows.length; i++) {
+        const cols = rows[i].split(',');
+        if (cols.length < 2) continue;
+
+        const sId = parseInt(cols[0].trim());
+        const m = parseInt(cols[1].trim());
+
+        if (isNaN(sId) || isNaN(m) || m < 0 || m > 100) {
+          errors.push(`Row ${i + 1} contains invalid numbers or out-of-range marks.`);
+        } else {
+          // --- SMART PRE-FILTERING ---
+          const student = allStudentsData.find(s => s.studentId.toString() === sId.toString());
+          if (student) {
+            const res = student.results.find(r => r.subjectId === batchSubject);
+            // Only add them if they are enrolled AND currently have 0 marks
+            if (res && Number(res.marks) === 0) {
+              parsedIds.push(sId);
+              parsedMarks.push(m);
+            }
+          }
+        }
+      }
+
+      if (errors.length > 0) {
+        alert("Found errors in CSV:\n" + errors.join('\n'));
+        return;
+      }
+
+      if (parsedIds.length === 0) {
+        setStatus("⚠️ No valid/pending students found in CSV for this subject.");
+        return;
+      }
+
+      try {
+        setStatus(`Batch processing ${parsedIds.length} students... Please confirm transaction.`);
+        await contract.methods.batchUpload(parsedIds, batchSubject, parsedMarks).send({ from: account });
+        setStatus(`✅ Successfully uploaded ${parsedIds.length} grades for ${batchSubject}!`);
+        setCsvFile(null);
+        fetchStudentData();
+      } catch (err) {
+        console.error(err);
+        setStatus("❌ Batch upload failed. Check contract constraints.");
+      }
+    };
+    reader.readAsText(csvFile);
+  };
+
+  // Render Helpers
   const isMarksInvalid = marks !== "" && (Number(marks) < 0 || Number(marks) > 100);
   const isUploadDisabled = !isProfessor || isMarksInvalid || !studentId || !selectedSubject || marks === "" || gradedRecordInfo !== null;
 
-  // Render Helpers
   const getSubjectLists = (sub) => {
     const studentsInSub = allStudentsData.filter(s => s.results.some(r => r.subjectId === sub));
     const pending = studentsInSub.filter(s => s.results.some(r => r.subjectId === sub && Number(r.marks) === 0));
@@ -172,69 +243,86 @@ const Professor = () => {
     <div className="form-box">
       <h3>Professor Panel</h3>
       
-      {/* MANUAL INPUT HUD */}
-      <div className="upload-form">
+      {/* MANUAL & BATCH INPUT HUD */}
+      <div className="upload-form" style={{ padding: "20px" }}>
         <p>Connected as: {account || "Not connected"}</p>
-        <h4>Grade Student</h4>
         
-        <input
-          type="number"
-          placeholder="Enter Student ID"
-          value={studentId}
-          onChange={(e) => setStudentId(e.target.value)}
-        />
-
-        {/* Dynamic Dropdown / Warnings */}
-        {studentId && dropdownSubjects.length > 0 && (
-          <select 
-            value={selectedSubject} 
-            onChange={(e) => setSelectedSubject(e.target.value)}
-            style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
+        {/* Toggle Mode */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+          <button 
+            onClick={() => setInputMode("single")}
+            style={{ flex: 1, backgroundColor: inputMode === "single" ? "#007bff" : "#6c757d", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
           >
-            {dropdownSubjects.map(sub => (
-              <option key={sub} value={sub}>{sub}</option>
-            ))}
-          </select>
+            ✏️ Manual Entry
+          </button>
+          <button 
+            onClick={() => setInputMode("batch")}
+            style={{ flex: 1, backgroundColor: inputMode === "batch" ? "#28a745" : "#6c757d", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
+          >
+            📁 Batch CSV Upload
+          </button>
+        </div>
+
+        {/* SINGLE MODE */}
+        {inputMode === "single" && (
+          <div>
+            <h4>Grade Individual Student</h4>
+            <input type="number" placeholder="Enter Student ID" value={studentId} onChange={(e) => setStudentId(e.target.value)} />
+
+            {studentId && dropdownSubjects.length > 0 && (
+              <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} style={{ width: "100%", padding: "10px", marginBottom: "10px" }}>
+                {dropdownSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+              </select>
+            )}
+
+            {studentId && allStudentsData.some(s => s.studentId.toString() === studentId) && dropdownSubjects.length === 0 && (
+              <p style={{ color: "#d9534f", fontWeight: "bold" }}>⚠️ Student is not enrolled in any of your authorized subjects.</p>
+            )}
+
+            {gradedRecordInfo ? (
+              <div style={{ backgroundColor: "#e8f5e9", padding: "10px", borderRadius: "5px", marginBottom: "10px", border: "1px solid #c8e6c9" }}>
+                <p style={{ color: "#2e7d32", margin: "0 0 5px 0" }}><strong>✅ Already Graded for {selectedSubject}</strong></p>
+                <p style={{ margin: "0" }}><strong>Marks:</strong> {gradedRecordInfo.marks}</p>
+              </div>
+            ) : (
+              dropdownSubjects.length > 0 && (
+                <>
+                  <input type="number" placeholder="Marks (0 - 100)" value={marks} onChange={(e) => setMarks(e.target.value)} style={{ borderColor: isMarksInvalid ? "red" : "" }} />
+                  {isMarksInvalid && <p style={{ color: "red", fontSize: "0.85em", marginTop: "-5px" }}>⚠️ Marks must be between 0 and 100.</p>}
+                </>
+              )
+            )}
+
+            <button onClick={handleUpload} disabled={isUploadDisabled} style={{ backgroundColor: isUploadDisabled ? "#ccc" : "#007bff", cursor: isUploadDisabled ? "not-allowed" : "pointer", marginTop: "10px" }}>
+              {gradedRecordInfo ? "Record Locked" : "Upload Marksheet"}
+            </button>
+          </div>
         )}
 
-        {studentId && allStudentsData.some(s => s.studentId.toString() === studentId) && dropdownSubjects.length === 0 && (
-          <p style={{ color: "#d9534f", fontWeight: "bold" }}>⚠️ Student is not enrolled in any of your authorized subjects.</p>
-        )}
+        {/* BATCH MODE */}
+        {inputMode === "batch" && (
+          <div style={{ backgroundColor: "#f8f9fa", padding: "15px", border: "1px dashed #ccc", borderRadius: "5px" }}>
+            <h4 style={{ marginTop: 0 }}>Upload Class Roster Grades</h4>
+            
+            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", fontSize: "0.9em" }}>1. Select Subject</label>
+            <select value={batchSubject} onChange={(e) => setBatchSubject(e.target.value)} style={{ width: "100%", padding: "10px", marginBottom: "15px" }}>
+              {authorizedSubjects.length === 0 ? <option value="">No subjects assigned</option> : authorizedSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+            </select>
 
-        {/* View Graded Record OR Enter Marks */}
-        {gradedRecordInfo ? (
-          <div style={{ backgroundColor: "#e8f5e9", padding: "10px", borderRadius: "5px", marginBottom: "10px", border: "1px solid #c8e6c9" }}>
-            <p style={{ color: "#2e7d32", margin: "0 0 5px 0" }}><strong>✅ Already Graded for {selectedSubject}</strong></p>
-            <p style={{ margin: "0" }}><strong>Marks:</strong> {gradedRecordInfo.marks}</p>
-            <p style={{ margin: "0", fontSize: "0.85em", color: "#555" }}>
-              Status: {gradedRecordInfo.isUploaded ? "Finalized by Dean" : (gradedRecordInfo.isValidated ? "Validated by Assoc Dean" : "Pending Validation")}
+            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", fontSize: "0.9em" }}>2. Select CSV File (Format: ID, Marks)</label>
+            <input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} style={{ marginBottom: "15px" }} />
+
+            <button onClick={handleBatchUpload} disabled={!batchSubject || !csvFile || !isProfessor} style={{ backgroundColor: (!batchSubject || !csvFile) ? "#ccc" : "#28a745", cursor: (!batchSubject || !csvFile) ? "not-allowed" : "pointer" }}>
+              Run Batch Upload
+            </button>
+            <p style={{ fontSize: "0.85em", color: "#666", marginTop: "10px" }}>
+              <em>Note: The system will automatically skip students who are already graded or not enrolled.</em>
             </p>
           </div>
-        ) : (
-          dropdownSubjects.length > 0 && (
-            <>
-              <input
-                type="number"
-                placeholder="Marks (0 - 100)"
-                value={marks}
-                onChange={(e) => setMarks(e.target.value)}
-                style={{ borderColor: isMarksInvalid ? "red" : "" }}
-              />
-              {isMarksInvalid && <p style={{ color: "red", fontSize: "0.85em", marginTop: "-5px" }}>⚠️ Marks must be between 0 and 100.</p>}
-            </>
-          )
         )}
 
-        <button 
-          onClick={handleUpload} 
-          disabled={isUploadDisabled}
-          style={{ backgroundColor: isUploadDisabled ? "#ccc" : "", cursor: isUploadDisabled ? "not-allowed" : "pointer" }}
-        >
-          {gradedRecordInfo ? "Record Locked" : "Upload Marksheet"}
-        </button>
-        
-        {!isProfessor && <p style={{ color: "red" }}>Only a professor can upload marksheets.</p>}
-        <p className="status-message">{status}</p>
+        {!isProfessor && <p style={{ color: "red", marginTop: "10px" }}>Only a professor can upload marksheets.</p>}
+        <p className="status-message" style={{ marginTop: "10px", fontWeight: "bold" }}>{status}</p>
       </div>
 
       <hr />
@@ -249,12 +337,13 @@ const Professor = () => {
             {authorizedSubjects.map(sub => {
               const { graded, total } = getSubjectLists(sub);
               const isComplete = graded.length === total && total > 0;
-              const color = isComplete ? "#28a745" : "#dc3545"; // Green if done, Red if pending
-
               return (
                 <button
                   key={sub}
-                  onClick={() => setActiveSubjectTab(sub)}
+                  onClick={() => {
+                    setActiveSubjectTab(sub);
+                    setBatchSubject(sub); // Sync batch subject with clicked tab
+                  }}
                   style={{
                     backgroundColor: activeSubjectTab === sub ? "#007bff" : "#f1f1f1",
                     color: activeSubjectTab === sub ? "white" : "#333",
@@ -268,7 +357,7 @@ const Professor = () => {
                   }}
                 >
                   <strong style={{ fontSize: "1.1em" }}>{sub}</strong>
-                  <span style={{ fontSize: "0.85em", color: activeSubjectTab === sub ? "white" : color, fontWeight: "bold" }}>
+                  <span style={{ fontSize: "0.85em", color: activeSubjectTab === sub ? "white" : (isComplete ? "#28a745" : "#dc3545"), fontWeight: "bold" }}>
                     {graded.length}/{total} Graded
                   </span>
                 </button>
@@ -284,12 +373,7 @@ const Professor = () => {
               {/* Pending Table */}
               <h5 style={{ color: "#dc3545" }}>⏳ Pending Grading ({activeLists.pending.length})</h5>
               <table className="uploaded-students-table" style={{ marginBottom: "20px" }}>
-                <thead>
-                  <tr>
-                    <th>Student ID</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
                 <tbody>
                   {activeLists.pending.length > 0 ? (
                     activeLists.pending.map((s, index) => (
@@ -298,13 +382,14 @@ const Professor = () => {
                         <td>
                           <button 
                             onClick={() => {
+                              setInputMode("single");
                               setStudentId(s.studentId.toString());
                               setSelectedSubject(activeSubjectTab);
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
                             style={{ padding: "5px 10px", backgroundColor: "#ffc107", color: "#333", border: "none" }}
                           >
-                            Grade Now
+                            Grade Manually
                           </button>
                         </td>
                       </tr>
@@ -318,12 +403,7 @@ const Professor = () => {
               {/* Graded Table */}
               <h5 style={{ color: "#28a745" }}>✅ Successfully Graded ({activeLists.graded.length})</h5>
               <table className="uploaded-students-table">
-                <thead>
-                  <tr>
-                    <th>Student ID</th>
-                    <th>Marks</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Student ID</th><th>Marks</th></tr></thead>
                 <tbody>
                   {activeLists.graded.length > 0 ? (
                     activeLists.graded.map((s, index) => {
@@ -349,7 +429,6 @@ const Professor = () => {
           <p>You are not currently assigned to grade any subjects. Please contact the Dean.</p>
         </div>
       )}
-
     </div>
   );
 };

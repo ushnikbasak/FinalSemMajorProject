@@ -218,6 +218,47 @@ contract MainContract
         require(subjectFound, "Student is not registered for this subject");
     }
 
+    // Batch upload marks for a specific subject
+    function batchUpload(
+        uint[] calldata _studentIds, 
+        string calldata _subjectID, 
+        uint[] calldata _marks
+    ) external onlyProfessor 
+    {
+        require(professorPermissions[msg.sender][_subjectID], "Not authorized for this subject");
+        require(_studentIds.length == _marks.length, "Mismatched arrays: IDs and Marks");
+
+        for (uint i = 0; i < _studentIds.length; i++) 
+        {
+            uint currentMark = _marks[i];
+            uint sId = _studentIds[i];
+            
+            require(currentMark <= 100, "Marks must be between 0 and 100");
+            
+            Marksheet storage marksheet = marksheets[sId];
+            require(marksheet.studentId != 0, "Student not registered");
+
+            bool subjectFound = false;
+            
+            // Search the student's dynamic array for the specific subject
+            for (uint j = 0; j < marksheet.results.length; j++) 
+            {
+                if (keccak256(bytes(marksheet.results[j].subjectId)) == keccak256(bytes(_subjectID)))
+                {
+                    require(marksheet.results[j].marks == 0, "This subject is already graded for one or more students");
+                    
+                    marksheet.results[j].marks = currentMark + 1; // Sentinel value offsetting
+                    marksheet.results[j].professor = msg.sender;
+                    
+                    subjectFound = true;
+                    break;
+                }
+            }
+
+            require(subjectFound, "A student in the batch is not registered for this subject");
+        }
+    }
+    
     function validate(uint _studentId, uint _nonce) external onlyAssociateDean 
     {
         Marksheet storage marksheet = marksheets[_studentId];
