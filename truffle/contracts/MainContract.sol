@@ -48,6 +48,9 @@ contract MainContract
         address uploadedBy;
     }
 
+    // To save the Transaction Hash of the Marksheet
+    event MarksheetFinalized(uint indexed studentId, address indexed dean);
+
     modifier onlyDean() 
     {
         require(msg.sender == dean, "Caller is not the Dean");
@@ -258,7 +261,7 @@ contract MainContract
             require(subjectFound, "A student in the batch is not registered for this subject");
         }
     }
-    
+
     function validate(uint _studentId, uint _nonce) external onlyAssociateDean 
     {
         Marksheet storage marksheet = marksheets[_studentId];
@@ -289,6 +292,8 @@ contract MainContract
 
         marksheet.isUploaded = true;
         marksheet.uploadedBy = dean;
+
+        emit MarksheetFinalized(_studentId, dean);
     }
 
     // Verifier asks for permission

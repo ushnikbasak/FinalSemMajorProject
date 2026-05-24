@@ -10,6 +10,8 @@ const Verifier = () => {
   const [myRequests, setMyRequests] = useState([]);
   const [viewedRecord, setViewedRecord] = useState(null);
 
+  const [txHash, setTxHash] = useState(null);
+
   const statusMap = {
     0: "None",
     1: "⏳ Pending (Associate Dean)",
@@ -79,11 +81,27 @@ const Verifier = () => {
   const handleViewRecord = async (id) => {
     setStatusMsg("Fetching official record...");
     setViewedRecord(null); 
+    setTxHash(null);
 
     try {
       const record = await contract.methods.viewMarksheet(id).call({ from: account });
       setViewedRecord(record);
       setStatusMsg("✅ Official record retrieved successfully.");
+
+      // Fetch Transaction Hash
+      try {
+        const events = await contract.getPastEvents("MarksheetFinalized", {
+          filter: { studentId: id }, // Look specifically for this student's finalization event
+          fromBlock: 0,
+          toBlock: "latest"
+        });
+
+        if (events && events.length > 0) {
+          setTxHash(events[0].transactionHash); // Capture the native cryptographic hash
+        }
+      } catch (eventErr) {
+        console.warn("Could not fetch TxHash from logs for verifier:", eventErr);
+      }
     } catch (err) {
       console.error("Error viewing record:", err);
       setStatusMsg("❌ Access Denied. You may not be authorized yet.");
@@ -163,12 +181,21 @@ const Verifier = () => {
             </tbody>
           </table>
 
-          {/* Integrity Seal */}
+          {/* Blockchain Hashes and Addresses */}
           <div style={{ backgroundColor: "#ffffff", padding: "15px", border: "1px dashed #a5d6a7", borderRadius: "5px", fontSize: "0.9em", color: "#444" }}>
-            <p style={{ margin: "0 0 5px 0", textTransform: "uppercase", fontWeight: "bold", color: "#388e3c" }}>🔒 Verified Blockchain Record</p>
+            <p style={{ margin: "0 0 5px 0", textTransform: "uppercase", fontWeight: "bold", color: "#388e3c" }}>Verified Blockchain Record</p>
             <p style={{ margin: "3px 0" }}><strong>Validated By (Associate Dean):</strong> {viewedRecord.validatedBy}</p>
             <p style={{ margin: "3px 0" }}><strong>Finalized By (Dean Academics):</strong> {viewedRecord.uploadedBy}</p>
             <p style={{ margin: "3px 0" }}><strong>Verification Date:</strong> {new Date(Number(viewedRecord.timestamp) * 1000).toLocaleString()}</p>
+
+            {txHash && (
+            <p style={{ margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px dashed #a5d6a7" }}>
+              <strong>On-Chain Receipt (TxHash):</strong> <br/>
+              <span style={{ fontFamily: "monospace", color: "#2e7d32", wordBreak: "break-all", fontSize: "0.95em", fontWeight: "bold" }}>
+                {txHash}
+              </span>
+            </p>
+        )}
           </div>
           
           <button onClick={() => setViewedRecord(null)} style={{ marginTop: "15px", backgroundColor: "#666", width: "100%" }}>

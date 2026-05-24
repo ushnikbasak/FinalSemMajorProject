@@ -8,6 +8,8 @@ const Student = () => {
   const [statusMsg, setStatusMsg] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
+  const [txHash, setTxHash] = useState(null);
+
   useEffect(() => {
     const findMyRecord = async () => {
       if (!contract || !account) {
@@ -46,6 +48,22 @@ const Student = () => {
 
           // Keep it simple: Only show if finalized or pending
           if (foundRecord.isUploaded) {
+            // Fetch Transaction Hash
+            try {
+              const events = await contract.getPastEvents("MarksheetFinalized", {
+                filter: { studentId: foundRecord.studentId }, // Only look for this student's event
+                fromBlock: 0,
+                toBlock: "latest"
+              });
+
+              if (events && events.length > 0) {
+                // Grab the transaction hash from the EVM log receipt
+                setTxHash(events[0].transactionHash);
+              }
+            } catch (eventErr) {
+              console.warn("Could not fetch TxHash from logs:", eventErr);
+            }
+
             setStatusMsg("✅ Status: Official. Your marks have been finalized.");
           } else {
             setStatusMsg("⏳ Status: Record found. Awaiting final University approval to view marks.");
@@ -125,13 +143,22 @@ const Student = () => {
               </tbody>
             </table>
 
-            {/* Integrity Seal */}
+            {/* Blockchain Hashes and Addresses */}
             <div style={{ backgroundColor: "#f8f9fa", padding: "15px", borderRadius: "5px", fontSize: "0.9em", color: "#444" }}>
-              <p style={{ margin: "0 0 5px 0", textTransform: "uppercase", fontWeight: "bold", color: "#6c757d" }}>🔒 Blockchain Integrity Seal</p>
+              <p style={{ margin: "0 0 5px 0", textTransform: "uppercase", fontWeight: "bold", color: "#6c757d" }}>Verified Blockchain Record</p>
               <p style={{ margin: "3px 0" }}><strong>Verified By (Assoc. Dean):</strong> {marksheet.validatedBy}</p>
               <p style={{ margin: "3px 0" }}><strong>Finalized By (Dean):</strong> {marksheet.uploadedBy}</p>
-              {/* Preserved Date Formatting */}
               <p style={{ margin: "3px 0" }}><strong>Date Verified:</strong> {new Date(marksheet.timestamp * 1000).toLocaleString()}</p>
+
+              {txHash && (
+                <p style={{ margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid #ddd" }}>
+                  <strong>Digital Receipt (Transaction Hash):</strong> <br/>
+                  <span style={{ fontFamily: "monospace", color: "#007bff", wordBreak: "break-all" }}>
+                    {txHash}
+                  </span>
+                </p>
+              )}
+
             </div>
 
           </div>
