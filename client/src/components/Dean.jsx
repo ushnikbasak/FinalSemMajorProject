@@ -36,6 +36,8 @@ const Dean = () => {
   const [showNotFinalized, setShowNotFinalized] = useState(false);
   const [showRequests, setShowRequests] = useState(true); // Default to true so Dean sees pending actions
 
+  const [activeTab, setActiveTab] = useState("register"); // Default tab
+
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
   // Check dean role
@@ -424,211 +426,256 @@ const Dean = () => {
 
   return (
     <div className="form-box">
-      <h3>Dean Panel</h3>
-      <p>Connected as: {account || "Not connected"}</p>
-
-      {/* CSV Upload */}
-      <div className="upload-form" style={{ marginBottom: "20px", padding: "15px", backgroundColor: "#f9f9f9", borderRadius: "8px" }}>
-        <h4>Batch Register Students (CSV)</h4>
-        <p style={{fontSize: "0.85em", color: "#666"}}>Format: Student ID, Wallet Address, Subject1, Subject2...</p>
-
-        <input
-          id="csv-upload-input"
-          type="file"
-          accept=".csv"
-          onChange={handleFileUpload}
-          onClick={(e) => { e.target.value = null; }}
-          disabled={!isDean}
-        />
-
-        {parsedIds.length > 0 && (
-          <div style={{ marginTop: "10px" }}>
-            <p>
-              <strong>Preview First 5:</strong>{" "}
-              {parsedIds.slice(0, 5).map((id, index) => `${id} [${parsedSubjects[index].join(", ")}]`).join(" | ")}
-              {parsedIds.length > 5 ? ' ...' : ''}
-            </p>
-            <button onClick={handleBatchRegister} disabled={!isDean}>
-              Register {parsedIds.length} Students
-            </button>
-          </div>
-        )}
-        {!isDean && <p style={{ color: "red" }}>Only the dean can batch register students.</p>}
-        <p className="status-message">{batchStatus}</p>
-      </div>
-
-      {/* Finalize Individual Marksheet */}
-      <div className="upload-form">
-        <h4>Finalize Individual Marksheet</h4>
-
-        <input
-          type="number"
-          placeholder="Enter Student ID"
-          value={studentId}
-          onChange={(e) => setStudentId(e.target.value)}
-        />
-
-        {marksheet && marksheet.studentWallet !== zeroAddress && (
-          <div className="marksheet-details" style={{ textAlign: "left", padding: "10px", backgroundColor: "#fff", border: "1px solid #ccc", marginTop: "10px" }}>
-            <p><strong>Marksheet Details (from blockchain)</strong></p>
-            <p><strong>Student ID:</strong> {marksheet.studentId.toString()}</p>
-            <p><strong>Wallet:</strong> {marksheet.studentWallet}</p>
-            <p><strong>Validated:</strong> {marksheet.isValidated ? "Yes" : "No"}</p>
-            <p><strong>Validated By:</strong> {marksheet.validatedBy}</p>
-            <p><strong>Finalized:</strong> {marksheet.isUploaded ? "Yes" : "No"}</p>
-            
-            <hr />
-            <p><strong>Subject Results:</strong></p>
-            <ul style={{ listStyleType: "none", paddingLeft: "0" }}>
-              {marksheet.results.map((res, idx) => (
-                <li key={idx} style={{ marginBottom: "5px", padding: "5px", backgroundColor: "#f1f1f1", borderRadius: "4px" }}>
-                  <strong>{res.subjectId}:</strong> {res.marks.toString() === "0" ? "Ungraded" : Number(res.marks) - 1} 
-                  <br/><span style={{ fontSize: "0.85em", color: "#555" }}>Prof: {res.professor === zeroAddress ? "Pending" : res.professor}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <button onClick={handleFinalize} disabled={!isDean || !marksheet || !marksheet.isValidated || marksheet.isUploaded} style={{ marginTop: "10px" }}>
-          Finalize Marksheet
+      <h3>Dean(Academics) Panel</h3>
+        <div style={{ display: "inline-block", backgroundColor: "#f8f9fa", padding: "10px 20px", borderRadius: "8px", border: "1px solid #dee2e6", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+          <span style={{ fontSize: "1.1em", color: "#6c757d"}}>
+            Connected Wallet: <strong style={{ color: "#007bff", wordBreak: "break-all", marginLeft: "5px", letterSpacing: "0.5px" }}>{account || "Not connected"}</strong>
+          </span>
+        </div>
+      {/* TOP NAVIGATION MENU */}
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "30px", borderBottom: "2px solid #eee", paddingBottom: "15px", paddingTop: "15px" }}>
+        <button 
+          onClick={() => setActiveTab("register")} 
+          style={{ flex: 1, backgroundColor: activeTab === "register" ? "#007bff" : "#f1f1f1", color: activeTab === "register" ? "white" : "#333", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
+        >
+           Batch Register
         </button>
-
-        <p className="status-message">{status}</p>
+        <button 
+          onClick={() => setActiveTab("finalize")} 
+          style={{ flex: 1, backgroundColor: activeTab === "finalize" ? "#28a745" : "#f1f1f1", color: activeTab === "finalize" ? "white" : "#333", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
+        >
+           Finalize Marksheets
+        </button>
+        <button 
+          onClick={() => { setActiveTab("approvals"); fetchVerificationRequests(); }} 
+          style={{ flex: 1, backgroundColor: activeTab === "approvals" ? "#ffc107" : "#f1f1f1", color: activeTab === "approvals" ? "#333" : "#333", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
+        >
+           Verifier Approvals
+        </button>
+        <button 
+          onClick={() => setActiveTab("catalog")} 
+          style={{ flex: 1, backgroundColor: activeTab === "catalog" ? "#17a2b8" : "#f1f1f1", color: activeTab === "catalog" ? "white" : "#333", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
+        >
+           Subjects & Load
+        </button>
+        <button 
+          onClick={() => setActiveTab("roles")} 
+          style={{ flex: 1, backgroundColor: activeTab === "roles" ? "#6c757d" : "#f1f1f1", color: activeTab === "roles" ? "white" : "#333", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
+        >
+           Manage Roles
+        </button>
       </div>
 
-      {/* Lists Section */}
-      <div className="list-box">
-        {/* FINAL VERIFICATION APPROVALS QUEUE  */}
-        <div className="student-section">
-          <button 
-            className="collapsible-button"
-            onClick={() => {
-              setShowRequests(!showRequests);
-              if (!showRequests) fetchVerificationRequests();
-            }}
+      {/* TAB CONTENT: CSV Upload */}
+      {activeTab === "register" && (
+        <div className="upload-form" style={{ padding: "15px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px dashed #ccc" }}>
+          <h4 style={{ marginTop: 0 }}>Batch Register Students (CSV)</h4>
+          <p style={{fontSize: "0.85em", color: "#666"}}>Format: Student ID, Wallet Address, Subject1, Subject2...</p>
+
+          <input
+            id="csv-upload-input"
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            onClick={(e) => { e.target.value = null; }}
             disabled={!isDean}
-          >
-            🛡️ Final Verification Approvals {showRequests ? "▲" : "▼"}
-          </button>
+            style={{ marginBottom: "15px" }}
+          />
 
-          {showRequests && (
-            <table className="uploaded-students-table" style={{ width: "100%", marginTop: "10px" }}>
-              <thead>
-                <tr>
-                  <th>Req #</th>
-                  <th>Company</th>
-                  <th>Student ID</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {processedRequests.length > 0 ? (
-                  processedRequests.map((req) => (
-                    <tr key={req.index}>
-                      <td>{req.index}</td>
-                      <td>{req.companyName}</td>
-                      <td>{req.studentId}</td>
-                      <td>
-                        <button onClick={() => handleAuthorizeRequest(req.index)}>Authorize</button>
-                        <button onClick={() => handleRejectRequest(req.index)}>Reject</button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="4">No pending authorizations.</td></tr>
-                )}
-              </tbody>
-            </table>
+          {parsedIds.length > 0 && (
+            <div style={{ marginTop: "10px", backgroundColor: "#fff", padding: "10px", borderRadius: "5px", border: "1px solid #eee" }}>
+              <p>
+                <strong>Preview First 5:</strong>{" "}
+                {parsedIds.slice(0, 5).map((id, index) => `${id} [${parsedSubjects[index].join(", ")}]`).join(" | ")}
+                {parsedIds.length > 5 ? ' ...' : ''}
+              </p>
+              <button onClick={handleBatchRegister} disabled={!isDean} style={{ width: "100%", marginTop: "10px" }}>
+                Register {parsedIds.length} Students
+              </button>
+            </div>
           )}
+          {!isDean && <p style={{ color: "red" }}>Only the dean can batch register students.</p>}
+          <p className="status-message" style={{ fontWeight: "bold" }}>{batchStatus}</p>
         </div>
+      )}
 
-        <div className="student-section">
-          <button className="collapsible-button" onClick={() => { setShowNotFinalized(!showNotFinalized); if (!showNotFinalized) fetchStudentLists(); }}>
-            ❌ Not Finalized Students {showNotFinalized ? "▲" : "▼"}
-          </button>
-          {showNotFinalized && (
-            <table className="uploaded-students-table">
-              <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
-              <tbody>
-                {notFinalizedStudents.length > 0 ? (
-                  notFinalizedStudents.map((id, i) => (
-                    <tr key={i}>
-                      <td>{id}</td>
-                      <td>
-                        <button onClick={() => { setStudentId(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Show Details</button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="2">No validated students pending finalization.</td></tr>
-                )}
-              </tbody>
-            </table>
-          )}
+      {/* TAB CONTENT: Finalize Individual Marksheet */}
+      {activeTab === "finalize" && (
+        <div>
+          <div className="upload-form" style={{ marginBottom: "20px" }}>
+            <h4 style={{ marginTop: 0 }}>Finalize Individual Marksheet</h4>
+            <input
+              type="number"
+              placeholder="Enter Student ID"
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              style={{ marginBottom: "10px" }}
+            />
+
+            {marksheet && marksheet.studentWallet !== zeroAddress && (
+              <div className="marksheet-details" style={{ textAlign: "left", padding: "15px", backgroundColor: "#f8f9fa", border: "1px solid #c8e6c9", borderRadius: "5px", marginTop: "10px" }}>
+                <p style={{ margin: "0 0 10px 0", color: "#2e7d32" }}><strong>🎓 Target Record Found</strong></p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "0.9em" }}>
+                  <p style={{ margin: 0 }}><strong>ID:</strong> {marksheet.studentId.toString()}</p>
+                  <p style={{ margin: 0 }}><strong>Finalized:</strong> {marksheet.isUploaded ? "✅ Yes" : "❌ No"}</p>
+                  <p style={{ margin: 0 }}><strong>Validated:</strong> {marksheet.isValidated ? "✅ Yes" : "⏳ Pending"}</p>
+                </div>
+                <p style={{ margin: "5px 0 0 0", fontSize: "1.50em", color: "#555", wordBreak: "break-all" }}><strong>Wallet:</strong> {marksheet.studentWallet}</p>
+                
+                <hr style={{ margin: "10px 0" }} />
+                <p style={{ margin: "0 0 5px 0" }}><strong>Subject Results:</strong></p>
+                <ul style={{ listStyleType: "none", paddingLeft: "0", margin: 0 }}>
+                  {marksheet.results.map((res, idx) => (
+                    <li key={idx} style={{ marginBottom: "5px", padding: "8px", backgroundColor: "#fff", borderRadius: "4px", border: "1px solid #ddd", display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "1.5em"}}><strong>{res.subjectId}:</strong> {res.marks.toString() === "0" ? "Ungraded" : Number(res.marks) - 1}</span>
+                      <span style={{ fontSize: "1.5em", color: "#777" }}>{res.professor === zeroAddress ? "No Prof" : "Graded"}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button onClick={handleFinalize} disabled={!isDean || !marksheet || !marksheet.isValidated || marksheet.isUploaded} style={{ marginTop: "15px", width: "100%", backgroundColor: (!marksheet || !marksheet.isValidated || marksheet.isUploaded) ? "#ccc" : "#28a745" }}>
+              Finalize Marksheet
+            </button>
+            <p className="status-message">{status}</p>
+          </div>
+
+          <div className="list-box">
+            <h4 style={{ marginTop: 0 }}>Roster Overviews</h4>
+            <div className="student-section">
+              <button className="collapsible-button" onClick={() => { setShowNotFinalized(!showNotFinalized); if (!showNotFinalized) fetchStudentLists(); }}>
+                ❌ Validated but Not Finalized {showNotFinalized ? "▲" : "▼"}
+              </button>
+              {showNotFinalized && (
+                <table className="uploaded-students-table">
+                  <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {notFinalizedStudents.length > 0 ? (
+                      notFinalizedStudents.map((id, i) => (
+                        <tr key={i}>
+                          <td>{id}</td>
+                          <td><button onClick={() => { setStudentId(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Load Details</button></td>
+                        </tr>
+                      ))
+                    ) : (<tr><td colSpan="2">No validated students pending finalization.</td></tr>)}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="student-section">
+              <button className="collapsible-button" onClick={() => { setShowFinalized(!showFinalized); if (!showFinalized) fetchStudentLists(); }}>
+                ✅ Officially Finalized {showFinalized ? "▲" : "▼"}
+              </button>
+              {showFinalized && (
+                <table className="uploaded-students-table">
+                  <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {finalizedStudents.length > 0 ? (
+                      finalizedStudents.map((s, i) => (
+                        <tr key={i}>
+                          <td>{s.studentId.toString()}</td>
+                          <td><button onClick={() => { setStudentId(s.studentId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>View Details</button></td>
+                        </tr>
+                      ))
+                    ) : (<tr><td colSpan="2">No finalized students available.</td></tr>)}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
+      )}
 
-        <div className="student-section">
-          <button className="collapsible-button" onClick={() => { setShowFinalized(!showFinalized); if (!showFinalized) fetchStudentLists(); }}>
-            ✅ Finalized Students {showFinalized ? "▲" : "▼"}
-          </button>
-          {showFinalized && (
-            <table className="uploaded-students-table">
-              <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
-              <tbody>
-                {finalizedStudents.length > 0 ? (
-                  finalizedStudents.map((s, i) => (
-                    <tr key={i}>
-                      <td>{s.studentId.toString()}</td>
-                      <td>
-                        <button onClick={() => { setStudentId(s.studentId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Show Details</button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="2">No finalized students available.</td></tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-      <hr></hr>
-
-      {/* Dynamic Catalog & Assignment Section */}
-      <div className="role-management-box">
-        <h4>Subject Catalog & Teaching Load</h4>
+      {/* TAB CONTENT: VERIFIER APPROVALS */}
+      {activeTab === "approvals" && (
         <div className="list-box">
-          <input type="text" placeholder="Subject ID (e.g., T801)" value={newSubjectId} onChange={(e) => setNewSubjectId(e.target.value.toUpperCase())} />
-          <button onClick={handleAddCatalog}>＋ Add to Catalog</button>
-          <button onClick={handleRemoveCatalog}>－ Remove from Catalog</button>
-          <p className="status-message">{catalogStatus}</p>
-
-          <hr />
-
-          <input type="text" placeholder="Professor Address" value={assignProfAddress} onChange={(e) => setAssignProfAddress(e.target.value)} />
-          <input type="text" placeholder="Subject ID (e.g., T801)" value={assignSubjectId} onChange={(e) => setAssignSubjectId(e.target.value.toUpperCase())} />
-          <button onClick={handleAssignProf}>Assign Subject to Prof</button>
-          <button onClick={handleRevokeProf}>Revoke Subject</button>
-          <p className="status-message">{assignStatus}</p>
+          <h4 style={{ marginTop: 0 }}>Final Verification Approvals Queue</h4>
+          <p style={{ fontSize: "0.9em", color: "#666" }}>These requests have passed Associate Dean audit.</p>
+          
+          <table className="uploaded-students-table" style={{ width: "100%", marginTop: "10px" }}>
+            <thead>
+              <tr>
+                <th>Req #</th>
+                <th>Company</th>
+                <th>Student ID</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {processedRequests.length > 0 ? (
+                processedRequests.map((req) => (
+                  <tr key={req.index}>
+                    <td>{req.index}</td>
+                    <td><strong>{req.companyName}</strong></td>
+                    <td>{req.studentId}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: "5px" }}>
+                        <button onClick={() => handleAuthorizeRequest(req.index)} style={{ backgroundColor: "#28a745", padding: "5px 10px", border: "none", color: "white", borderRadius: "3px" }}>Authorize</button>
+                        <button onClick={() => handleRejectRequest(req.index)} style={{ backgroundColor: "#dc3545", padding: "5px 10px", border: "none", color: "white", borderRadius: "3px" }}>Reject</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan="4">No pending authorizations from the Associate Dean.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
-      <hr></hr>
+      )}
 
-      {/* Role Management Section */}
-      <div className="role-management-box">
-        <h4>Manage Roles (Whitelist)</h4>
-        <div className="list-box">
-            <input type="text" placeholder="Professor Address" value={newProfAddress} onChange={(e) => setNewProfAddress(e.target.value)} />
-            <button onClick={handleAddProfessor}>＋ Add Professor Role</button>
-            <button onClick={handleRemoveProfessor}>－ Remove Professor Role</button>
-            <hr />
-            <input type="text" placeholder="Associate Dean Address" value={newAssocDeanAddress} onChange={(e) => setNewAssocDeanAddress(e.target.value)} />
-            <button onClick={handleAddAssociateDean}>＋ Add Associate Dean</button>
-            <button onClick={handleRemoveAssociateDean}>－ Remove Associate Dean</button>
+      {/* TAB CONTENT: CATALOG & LOAD */}
+      {activeTab === "catalog" && (
+        <div className="role-management-box">
+          <h4 style={{ marginTop: 0 }}>Subject Catalog</h4>
+          <div className="list-box" style={{ marginBottom: "20px" }}>
+            <input type="text" placeholder="Subject ID (e.g., CS801)" value={newSubjectId} onChange={(e) => setNewSubjectId(e.target.value.toUpperCase())} style={{ marginBottom: "10px" }} />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={handleAddCatalog} style={{ flex: 1, backgroundColor: "#007bff" }}>＋ Add to Catalog</button>
+              <button onClick={handleRemoveCatalog} style={{ flex: 1, backgroundColor: "#dc3545" }}>－ Remove</button>
+            </div>
+            <p className="status-message">{catalogStatus}</p>
+          </div>
+
+          <h4>Assign Teaching Load</h4>
+          <div className="list-box">
+            <input type="text" placeholder="Professor Address (0x...)" value={assignProfAddress} onChange={(e) => setAssignProfAddress(e.target.value)} style={{ marginBottom: "10px" }} />
+            <input type="text" placeholder="Subject ID (e.g., CS801)" value={assignSubjectId} onChange={(e) => setAssignSubjectId(e.target.value.toUpperCase())} style={{ marginBottom: "10px" }} />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={handleAssignProf} style={{ flex: 1, backgroundColor: "#28a745" }}>Assign Subject</button>
+              <button onClick={handleRevokeProf} style={{ flex: 1, backgroundColor: "#dc3545" }}>Revoke Subject</button>
+            </div>
+            <p className="status-message">{assignStatus}</p>
+          </div>
         </div>
-        <p className="status-message">{roleChangeStatus}</p>
-      </div>
+      )}
+
+      {/* TAB CONTENT: ROLE MANAGEMENT */}
+      {activeTab === "roles" && (
+        <div className="role-management-box">
+          <h4 style={{ marginTop: 0 }}>Manage Professors</h4>
+          <div className="list-box" style={{ marginBottom: "20px" }}>
+            <input type="text" placeholder="Professor Wallet Address" value={newProfAddress} onChange={(e) => setNewProfAddress(e.target.value)} style={{ marginBottom: "10px" }} />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={handleAddProfessor} style={{ flex: 1, backgroundColor: "#007bff" }}>＋ Whitelist Prof</button>
+              <button onClick={handleRemoveProfessor} style={{ flex: 1, backgroundColor: "#dc3545" }}>－ Revoke Prof</button>
+            </div>
+          </div>
+          
+          <h4>Manage Associate Deans (Auditors)</h4>
+          <div className="list-box">
+            <input type="text" placeholder="Assoc. Dean Wallet Address" value={newAssocDeanAddress} onChange={(e) => setNewAssocDeanAddress(e.target.value)} style={{ marginBottom: "10px" }} />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={handleAddAssociateDean} style={{ flex: 1, backgroundColor: "#17a2b8" }}>＋ Whitelist Assoc. Dean</button>
+              <button onClick={handleRemoveAssociateDean} style={{ flex: 1, backgroundColor: "#dc3545" }}>－ Revoke Assoc. Dean</button>
+            </div>
+          </div>
+          <p className="status-message" style={{ marginTop: "15px", fontWeight: "bold" }}>{roleChangeStatus}</p>
+        </div>
+      )}
+
     </div>
   );
 };

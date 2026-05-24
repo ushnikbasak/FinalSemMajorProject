@@ -99,9 +99,13 @@ const Student = () => {
       <h3>Student Dashboard</h3>
       
       <div className="upload-form">
-        <p>
-          Connected Wallet: <span>{account || "None"}</span>
-        </p>
+        <div style={{ display: "inline-block", backgroundColor: "#f8f9fa", padding: "10px 20px", borderRadius: "8px", border: "1px solid #dee2e6", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+          <span style={{ fontSize: "1.1em", color: "#6c757d"}}>
+            Connected Wallet: <strong style={{ color: "#007bff", wordBreak: "break-all", marginLeft: "5px", letterSpacing: "0.5px" }}>{account || "Not connected"}</strong>
+          </span>
+        </div>
+
+        <div style={{paddingTop: "15px" }}></div>
 
         {/* Dynamic Status Display */}
         <div style={{ padding: "15px", backgroundColor: "#f0f8ff", borderRadius: "8px", border: "1px solid #cce0ff", marginBottom: "20px" }}>

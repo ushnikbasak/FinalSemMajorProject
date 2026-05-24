@@ -239,10 +239,14 @@ const AssociateDean = () => {
   return (
     <div className="form-box">
       <h3>Associate Dean Panel</h3>
-      <p>Connected as: {account || "Not connected"}</p>
+        <div style={{ display: "inline-block", backgroundColor: "#f8f9fa", padding: "10px 20px", borderRadius: "8px", border: "1px solid #dee2e6", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+          <span style={{ fontSize: "1.1em", color: "#6c757d"}}>
+            Connected Wallet: <strong style={{ color: "#007bff", wordBreak: "break-all", marginLeft: "5px", letterSpacing: "0.5px" }}>{account || "Not connected"}</strong>
+          </span>
+        </div>
 
       {/* TOP LEVEL TABS */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px", paddingTop: "20px" }}>
         <button 
           onClick={() => setActiveMainTab("records")}
           style={{ flex: 1, backgroundColor: activeMainTab === "records" ? "#007bff" : "#6c757d", color: "white", padding: "12px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
@@ -368,7 +372,7 @@ const AssociateDean = () => {
                 onClick={() => toggleAccordion("ready")} 
                 style={{ backgroundColor: activeAccordion === "ready" ? "#007bff" : "#f1f1f1", color: activeAccordion === "ready" ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
               >
-                ⏳ Ready for Validation ({readyStudents.length}) {activeAccordion === "ready" ? "▲" : "▼"}
+                 Ready for Validation ({readyStudents.length}) {activeAccordion === "ready" ? "▲" : "▼"}
               </button>
               
               {activeAccordion === "ready" && (
@@ -424,7 +428,7 @@ const AssociateDean = () => {
                 onClick={() => toggleAccordion("validated")} 
                 style={{ backgroundColor: activeAccordion === "validated" ? "#28a745" : "#f1f1f1", color: activeAccordion === "validated" ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
               >
-                ✅ History: Validated by Me ({validatedStudents.length}) {activeAccordion === "validated" ? "▲" : "▼"}
+                ✅ Validated Students ({validatedStudents.length}) {activeAccordion === "validated" ? "▲" : "▼"}
               </button>
 
               {activeAccordion === "validated" && (

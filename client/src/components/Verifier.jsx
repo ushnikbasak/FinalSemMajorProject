@@ -123,18 +123,20 @@ const Verifier = () => {
       <h3>Verifier Dashboard</h3>
       
       <div className="upload-form" style={{ marginBottom: "20px" }}>
-        <p style={{ fontWeight: "bold", color: "#333" }}>
-          Connected Wallet: <span style={{ fontWeight: "normal", color: "#555" }}>{account || "Not connected"}</span>
-        </p>
-
-        <h4>Request Official Record</h4>
+        <div style={{ display: "inline-block", backgroundColor: "#f8f9fa", padding: "10px 20px", borderRadius: "8px", border: "1px solid #dee2e6", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+          <span style={{ fontSize: "1.1em", color: "#6c757d"}}>
+            Connected Wallet: <strong style={{ color: "#007bff", wordBreak: "break-all", marginLeft: "5px", letterSpacing: "0.5px" }}>{account || "Not connected"}</strong>
+          </span>
+        </div>
+        
+        <div style={{paddingTop: "15px" }}></div>
         
         <input
           type="text"
-          placeholder="Your Company / Institute Name"
+          placeholder="Your Company Name and Reason for Request"
           value={companyNameInput}
           onChange={(e) => setCompanyNameInput(e.target.value)}
-          style={{ marginBottom: "10px" }}
+          style={{ marginBottom: "10px"}}
         />
         <input
           type="number"
