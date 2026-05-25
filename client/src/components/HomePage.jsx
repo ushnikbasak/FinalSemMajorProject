@@ -35,7 +35,8 @@ const HomePage = () => {
 
   return (
     <div className="home-container">
-      <h3>Welcome to XYZ University DApp</h3>
+      <h3>National Institute of Advanced Manufacturing Technology (NIAMT) (formerly NIFFT)</h3>
+      <h3>Decentralized Marksheet Portal</h3>
       <p>Please connect your MetaMask Wallet before proceeding:</p>
       <div className="role-options">
         <div className="role-card" onClick={() => checkAndNavigate("/professor", "isProfessor")}>
@@ -50,7 +51,7 @@ const HomePage = () => {
 
         <div className="role-card" onClick={() => checkAndNavigate("/dean", "dean")}>
           {/* <div className="emoji">🎓</div> */}
-          <h4>Dean</h4>
+          <h4>Dean (Academics)</h4>
         </div>
 
         <div className="role-card" onClick={() => navigate("/verifier")}>

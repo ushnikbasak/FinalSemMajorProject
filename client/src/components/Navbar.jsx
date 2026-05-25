@@ -37,7 +37,7 @@ const Navbar = () => {
 
   return (
     <nav className="navbar">
-      <h2>XYZ University DApp</h2>
+      <h2>Decentralized Marksheet Portal</h2>
       <ul>
         <li><Link to="/">Home</Link></li>
         <li><button className="nav-role-button" onClick={() => handleProtectedNavigation("/professor", "isProfessor")}>Professor</button></li>

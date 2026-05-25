@@ -456,7 +456,7 @@ const Dean = () => {
           onClick={() => setActiveTab("catalog")} 
           style={{ flex: 1, backgroundColor: activeTab === "catalog" ? "#17a2b8" : "#f1f1f1", color: activeTab === "catalog" ? "white" : "#333", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
         >
-           Subjects & Load
+           Subjects
         </button>
         <button 
           onClick={() => setActiveTab("roles")} 
@@ -468,9 +468,9 @@ const Dean = () => {
 
       {/* TAB CONTENT: CSV Upload */}
       {activeTab === "register" && (
-        <div className="upload-form" style={{ padding: "15px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px dashed #ccc" }}>
-          <h4 style={{ marginTop: 0 }}>Batch Register Students (CSV)</h4>
-          <p style={{fontSize: "0.85em", color: "#666"}}>Format: Student ID, Wallet Address, Subject1, Subject2...</p>
+        <div className="upload-form" style={{ padding: "15px", backgroundColor: "#fdf5e6", borderRadius: "8px", border: "1px dashed #ccc" }}>
+          <h4 style={{fontSize: "1.5em", marginTop: 0 }}>Batch Register Students (CSV)</h4>
+          <p style={{fontSize: "1em", color: "#666"}}>Format: Student ID, Wallet Address, Subject1, Subject2...</p>
 
           <input
             id="csv-upload-input"
@@ -479,7 +479,7 @@ const Dean = () => {
             onChange={handleFileUpload}
             onClick={(e) => { e.target.value = null; }}
             disabled={!isDean}
-            style={{ marginBottom: "15px" }}
+            style={{ marginBottom: "15px", backgroundColor: "#ffffff" }}
           />
 
           {parsedIds.length > 0 && (
@@ -503,18 +503,18 @@ const Dean = () => {
       {activeTab === "finalize" && (
         <div>
           <div className="upload-form" style={{ marginBottom: "20px" }}>
-            <h4 style={{ marginTop: 0 }}>Finalize Individual Marksheet</h4>
+            <h4 style={{paddingBottom: "15px", fontSize: "1.5em", marginTop: 0 }}>Finalize Individual Marksheet</h4>
             <input
               type="number"
               placeholder="Enter Student ID"
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
-              style={{ marginBottom: "10px" }}
+              style={{marginBottom: "10px" }}
             />
 
             {marksheet && marksheet.studentWallet !== zeroAddress && (
               <div className="marksheet-details" style={{ textAlign: "left", padding: "15px", backgroundColor: "#f8f9fa", border: "1px solid #c8e6c9", borderRadius: "5px", marginTop: "10px" }}>
-                <p style={{ margin: "0 0 10px 0", color: "#2e7d32" }}><strong>🎓 Target Record Found</strong></p>
+                <p style={{ margin: "0 0 10px 0", color: "#2e7d32" }}><strong>Record Found</strong></p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "0.9em" }}>
                   <p style={{ margin: 0 }}><strong>ID:</strong> {marksheet.studentId.toString()}</p>
                   <p style={{ margin: 0 }}><strong>Finalized:</strong> {marksheet.isUploaded ? "✅ Yes" : "❌ No"}</p>
@@ -522,13 +522,30 @@ const Dean = () => {
                 </div>
                 <p style={{ margin: "5px 0 0 0", fontSize: "1.50em", color: "#555", wordBreak: "break-all" }}><strong>Wallet:</strong> {marksheet.studentWallet}</p>
                 
+                {/* NEW: Display Validator Address if Validated */}
+                {marksheet.isValidated && (
+                  <p style={{ margin: "5px 0 0 0", fontSize: "1.5em", wordBreak: "break-all" }}>
+                    <strong>Validated By:</strong> {marksheet.validatedBy}
+                  </p>
+                )}
+                
                 <hr style={{ margin: "10px 0" }} />
                 <p style={{ margin: "0 0 5px 0" }}><strong>Subject Results:</strong></p>
                 <ul style={{ listStyleType: "none", paddingLeft: "0", margin: 0 }}>
                   {marksheet.results.map((res, idx) => (
-                    <li key={idx} style={{ marginBottom: "5px", padding: "8px", backgroundColor: "#fff", borderRadius: "4px", border: "1px solid #ddd", display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "1.5em"}}><strong>{res.subjectId}:</strong> {res.marks.toString() === "0" ? "Ungraded" : Number(res.marks) - 1}</span>
-                      <span style={{ fontSize: "1.5em", color: "#777" }}>{res.professor === zeroAddress ? "No Prof" : "Graded"}</span>
+                    <li key={idx} style={{ marginBottom: "5px", padding: "8px", backgroundColor: "#fff", borderRadius: "4px", border: "1px solid #ddd", display: "flex", flexDirection: "column" }}>
+                      
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: "1.5em"}}><strong>{res.subjectId}:</strong> {res.marks.toString() === "0" ? "Ungraded" : Number(res.marks) - 1}</span>
+                        <span style={{ fontSize: "1.5em", color: "#777" }}>{res.professor === zeroAddress ? "No Prof" : "Graded"}</span>
+                      </div>
+
+                      {res.professor !== zeroAddress && (
+                        <span style={{ fontSize: "1.2em", color: "#666", marginTop: "4px", wordBreak: "break-all" }}>
+                          <strong>Prof Address:</strong> {res.professor}
+                        </span>
+                      )}
+
                     </li>
                   ))}
                 </ul>
@@ -542,7 +559,6 @@ const Dean = () => {
           </div>
 
           <div className="list-box">
-            <h4 style={{ marginTop: 0 }}>Roster Overviews</h4>
             <div className="student-section">
               <button className="collapsible-button" onClick={() => { setShowNotFinalized(!showNotFinalized); if (!showNotFinalized) fetchStudentLists(); }}>
                 ❌ Validated but Not Finalized {showNotFinalized ? "▲" : "▼"}
@@ -591,14 +607,14 @@ const Dean = () => {
       {/* TAB CONTENT: VERIFIER APPROVALS */}
       {activeTab === "approvals" && (
         <div className="list-box">
-          <h4 style={{ marginTop: 0 }}>Final Verification Approvals Queue</h4>
+          <h4 style={{ fontSize: "1.5em", marginTop: 0 }}>Final Verification Approvals Queue</h4>
           <p style={{ fontSize: "0.9em", color: "#666" }}>These requests have passed Associate Dean audit.</p>
           
           <table className="uploaded-students-table" style={{ width: "100%", marginTop: "10px" }}>
             <thead>
               <tr>
                 <th>Req #</th>
-                <th>Company</th>
+                <th>Company Name and Verification Reason</th>
                 <th>Student ID</th>
                 <th>Actions</th>
               </tr>
@@ -626,26 +642,26 @@ const Dean = () => {
         </div>
       )}
 
-      {/* TAB CONTENT: CATALOG & LOAD */}
+      {/* TAB CONTENT: SUBJECT CATALOG & ASSIGNMENT */}
       {activeTab === "catalog" && (
         <div className="role-management-box">
           <h4 style={{ marginTop: 0 }}>Subject Catalog</h4>
-          <div className="list-box" style={{ marginBottom: "20px" }}>
+          <div className="list-box" style={{ marginBottom: "20px", justifyContent: "center" }}>
             <input type="text" placeholder="Subject ID (e.g., CS801)" value={newSubjectId} onChange={(e) => setNewSubjectId(e.target.value.toUpperCase())} style={{ marginBottom: "10px" }} />
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={handleAddCatalog} style={{ flex: 1, backgroundColor: "#007bff" }}>＋ Add to Catalog</button>
-              <button onClick={handleRemoveCatalog} style={{ flex: 1, backgroundColor: "#dc3545" }}>－ Remove</button>
+            <div style={{ display: "flex", gap: "10px"}}>
+              <button onClick={handleAddCatalog} style={{backgroundColor: "#007bff" }}>＋ Add</button>
+              <button onClick={handleRemoveCatalog} style={{backgroundColor: "#dc3545" }}>－ Remove</button>
             </div>
             <p className="status-message">{catalogStatus}</p>
           </div>
 
-          <h4>Assign Teaching Load</h4>
-          <div className="list-box">
-            <input type="text" placeholder="Professor Address (0x...)" value={assignProfAddress} onChange={(e) => setAssignProfAddress(e.target.value)} style={{ marginBottom: "10px" }} />
+          <h4>Assign Subject to Professor</h4>
+          <div className="list-box" style={{justifyContent: "center"}}>
+            <input type="text" placeholder="Professor Wallet Address (0x...)" value={assignProfAddress} onChange={(e) => setAssignProfAddress(e.target.value)} style={{ marginBottom: "10px" }} />
             <input type="text" placeholder="Subject ID (e.g., CS801)" value={assignSubjectId} onChange={(e) => setAssignSubjectId(e.target.value.toUpperCase())} style={{ marginBottom: "10px" }} />
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={handleAssignProf} style={{ flex: 1, backgroundColor: "#28a745" }}>Assign Subject</button>
-              <button onClick={handleRevokeProf} style={{ flex: 1, backgroundColor: "#dc3545" }}>Revoke Subject</button>
+            <div style={{ display: "flex", gap: "10px"}}>
+              <button onClick={handleAssignProf} style={{backgroundColor: "#28a745" }}>Assign Subject</button>
+              <button onClick={handleRevokeProf} style={{backgroundColor: "#dc3545" }}>Revoke Subject</button>
             </div>
             <p className="status-message">{assignStatus}</p>
           </div>
@@ -656,20 +672,20 @@ const Dean = () => {
       {activeTab === "roles" && (
         <div className="role-management-box">
           <h4 style={{ marginTop: 0 }}>Manage Professors</h4>
-          <div className="list-box" style={{ marginBottom: "20px" }}>
-            <input type="text" placeholder="Professor Wallet Address" value={newProfAddress} onChange={(e) => setNewProfAddress(e.target.value)} style={{ marginBottom: "10px" }} />
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={handleAddProfessor} style={{ flex: 1, backgroundColor: "#007bff" }}>＋ Whitelist Prof</button>
-              <button onClick={handleRemoveProfessor} style={{ flex: 1, backgroundColor: "#dc3545" }}>－ Revoke Prof</button>
+          <div className="list-box" style={{ marginBottom: "20px", justifyContent: "center"}}>
+            <input type="text" placeholder="Professor Wallet Address (0x...)" value={newProfAddress} onChange={(e) => setNewProfAddress(e.target.value)} style={{ marginBottom: "10px" }} />
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+              <button onClick={handleAddProfessor} style={{backgroundColor: "#007bff" }}>＋ Add</button>
+              <button onClick={handleRemoveProfessor} style={{backgroundColor: "#dc3545" }}>－ Remove</button>
             </div>
           </div>
           
-          <h4>Manage Associate Deans (Auditors)</h4>
-          <div className="list-box">
-            <input type="text" placeholder="Assoc. Dean Wallet Address" value={newAssocDeanAddress} onChange={(e) => setNewAssocDeanAddress(e.target.value)} style={{ marginBottom: "10px" }} />
+          <h4>Manage Associate Deans</h4>
+          <div className="list-box" style={{justifyContent: "center"}}>
+            <input type="text" placeholder="Associate Dean Wallet Address (0x...)" value={newAssocDeanAddress} onChange={(e) => setNewAssocDeanAddress(e.target.value)} style={{ marginBottom: "10px" }} />
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={handleAddAssociateDean} style={{ flex: 1, backgroundColor: "#17a2b8" }}>＋ Whitelist Assoc. Dean</button>
-              <button onClick={handleRemoveAssociateDean} style={{ flex: 1, backgroundColor: "#dc3545" }}>－ Revoke Assoc. Dean</button>
+              <button onClick={handleAddAssociateDean} style={{backgroundColor: "#17a2b8" }}>＋ Add</button>
+              <button onClick={handleRemoveAssociateDean} style={{backgroundColor: "#dc3545" }}>－ Remove</button>
             </div>
           </div>
           <p className="status-message" style={{ marginTop: "15px", fontWeight: "bold" }}>{roleChangeStatus}</p>

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { Web3Context } from "../contexts/Web3Context";
 
 const Professor = () => {
@@ -28,6 +28,7 @@ const Professor = () => {
   // Batch CSV Input State
   const [batchSubject, setBatchSubject] = useState("");
   const [csvFile, setCsvFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -221,6 +222,11 @@ const Professor = () => {
         await contract.methods.batchUpload(parsedIds, batchSubject, parsedMarks).send({ from: account });
         setStatus(`✅ Successfully uploaded ${parsedIds.length} grades for ${batchSubject}!`);
         setCsvFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
         fetchStudentData();
       } catch (err) {
         console.error(err);
@@ -258,29 +264,28 @@ const Professor = () => {
       </div>
       
       {/* TOP SECTION: GRADING CONSOLE */}
-      <div style={{ backgroundColor: "#ffffff", border: "1px solid #e0e0e0", borderRadius: "10px", padding: "25px", boxShadow: "0 4px 6px rgba(0,0,0,0.02)", marginBottom: "30px" }}>
+      <div style={{ backgroundColor: "#fdf5e6", border: "1px solid #e0e0e0", borderRadius: "10px", padding: "25px", boxShadow: "0 4px 6px rgba(0,0,0,0.02)", marginBottom: "30px" }}>
         
         {/* Sleek Segmented Control for Mode Toggle */}
-        <div style={{ display: "flex", backgroundColor: "#f1f3f5", borderRadius: "8px", padding: "5px", marginBottom: "25px", maxWidth: "600px", margin: "0 auto 25px auto" }}>
+        <div style={{ display: "flex", backgroundColor: "#f1f3f5", border: "1px solid #000000", borderRadius: "8px", padding: "5px", marginBottom: "25px", maxWidth: "600px", margin: "0 auto 25px auto" }}>
           <button 
             onClick={() => setInputMode("single")}
             style={{ flex: 1, backgroundColor: inputMode === "single" ? "#ffffff" : "transparent", color: inputMode === "single" ? "#007bff" : "#6c757d", border: "none", borderRadius: "5px", padding: "10px", fontWeight: "bold", cursor: "pointer", boxShadow: inputMode === "single" ? "0 2px 4px rgba(0,0,0,0.05)" : "none", transition: "all 0.2s ease-in-out" }}
           >
-            ✏️ Manual Entry
+             Manual Entry
           </button>
           <button 
             onClick={() => setInputMode("batch")}
             style={{ flex: 1, backgroundColor: inputMode === "batch" ? "#ffffff" : "transparent", color: inputMode === "batch" ? "#28a745" : "#6c757d", border: "none", borderRadius: "5px", padding: "10px", fontWeight: "bold", cursor: "pointer", boxShadow: inputMode === "batch" ? "0 2px 4px rgba(0,0,0,0.05)" : "none", transition: "all 0.2s ease-in-out" }}
           >
-            📁 Batch CSV Upload
+             Batch CSV Upload
           </button>
         </div>
 
         {/* SINGLE MODE */}
         {inputMode === "single" && (
           <div style={{ maxWidth: "500px", margin: "0 auto", textAlign: "center" }}>
-            <h4 style={{ marginTop: 0, color: "#333" }}>Grade Individual Student</h4>
-            <input type="number" placeholder="Enter Student ID" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", border: "1px solid #ccc", borderRadius: "5px", boxSizing: "border-box" }} />
+            <input type="number" placeholder="Enter Student ID" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", border: "1px solid #000", borderRadius: "5px", boxSizing: "border-box" }} />
 
             {studentId && dropdownSubjects.length > 0 && (
               <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} style={{ width: "100%", padding: "12px", marginBottom: "15px", border: "1px solid #ccc", borderRadius: "5px", backgroundColor: "#fff" }}>
@@ -321,18 +326,24 @@ const Professor = () => {
         {/* BATCH MODE */}
         {inputMode === "batch" && (
           <div style={{ maxWidth: "600px", margin: "0 auto", backgroundColor: "#f8f9fa", padding: "20px", border: "2px dashed #ced4da", borderRadius: "8px" }}>
-            <h4 style={{ marginTop: 0, textAlign: "center", color: "#333" }}>Upload Class Roster Grades</h4>
             
             <div style={{ marginBottom: "15px", textAlign: "left" }}>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#495057", fontSize: "0.9em" }}>1. Select Subject</label>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#495057", fontSize: "1.5em" }}>1. Select Subject</label>
               <select value={batchSubject} onChange={(e) => setBatchSubject(e.target.value)} style={{ width: "100%", padding: "12px", border: "1px solid #ccc", borderRadius: "5px", backgroundColor: "#fff" }}>
                 {authorizedSubjects.length === 0 ? <option value="">No subjects assigned</option> : authorizedSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: "20px", textAlign: "left" }}>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#495057", fontSize: "0.9em" }}>2. Select CSV File (Format: ID, Marks)</label>
-              <input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} style={{ width: "100%", padding: "10px", backgroundColor: "#fff", border: "1px solid #ccc", borderRadius: "5px" }} />
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#495057", fontSize: "1.5em" }}>2. Select CSV File (Format: ID, Marks)</label>
+              <input 
+              type="file" 
+              accept=".csv" 
+              ref={fileInputRef}
+              onClick={(e) => { e.target.value = null; }} 
+              onChange={(e) => setCsvFile(e.target.files[0])} 
+              style={{ width: "100%", padding: "10px", backgroundColor: "#fff", border: "1px solid #ccc", borderRadius: "5px" }} 
+            />
             </div>
 
             <button 
@@ -357,8 +368,7 @@ const Professor = () => {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "flex-start" }}>
           
           {/* LEFT SIDEBAR: Subject Tabs */}
-          <div style={{ flex: "1", minWidth: "250px", backgroundColor: "#ffffff", border: "1px solid #e0e0e0", borderRadius: "10px", padding: "20px", boxShadow: "0 4px 6px rgba(0,0,0,0.02)" }}>
-            <h4 style={{ marginTop: 0, borderBottom: "2px solid #f1f3f5", paddingBottom: "10px", color: "#333" }}>Teaching Load</h4>
+          <div style={{ flex: "1", minWidth: "250px", backgroundColor: "#fdf5e6", border: "1px solid #e0e0e0", borderRadius: "10px", padding: "20px", boxShadow: "0 4px 6px rgba(0,0,0,0.02)" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {authorizedSubjects.map(sub => {
                 const { graded, total } = getSubjectLists(sub);
@@ -394,12 +404,12 @@ const Professor = () => {
           </div>
 
           {/* RIGHT PANEL: Class Roster Tables */}
-          <div style={{ flex: "2", minWidth: "350px" }}>
+          <div style={{ flex: "2", minWidth: "350px", backgroundColor: "#fdf5e6" }}>
             {activeSubjectTab ? (
-              <div style={{ backgroundColor: "#ffffff", border: "1px solid #e0e0e0", borderRadius: "10px", padding: "20px", boxShadow: "0 4px 6px rgba(0,0,0,0.02)" }}>
+              <div style={{ border: "1px solid #e0e0e0", borderRadius: "10px", padding: "20px", boxShadow: "0 4px 6px rgba(0,0,0,0.02)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #f1f3f5", paddingBottom: "10px", marginBottom: "20px" }}>
-                  <h4 style={{ margin: 0, color: "#007bff" }}>Class Roster: {activeSubjectTab}</h4>
-                  <span style={{ fontSize: "0.85em", color: "#6c757d" }}>Total Enrolled: {activeLists.total}</span>
+                  <h4 style={{ fontSize: "1.5em", margin: 0, color: "#007bff" }}>Class Roster: {activeSubjectTab}</h4>
+                  <span style={{ fontSize: "1.5em", color: "#6c757d" }}>Total Enrolled: {activeLists.total}</span>
                 </div>
                 
                 {/* COLLAPSIBLE PENDING LIST */}

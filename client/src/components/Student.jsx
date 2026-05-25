@@ -119,8 +119,8 @@ const Student = () => {
         {marksheet && marksheet.isUploaded && (
           <div className="marksheet-details" style={{ textAlign: "left", border: "2px solid #28a745", padding: "20px", borderRadius: "8px", backgroundColor: "#fff" }}>
             
-            <h4 style={{ color: "#28a745", marginTop: 0, borderBottom: "1px solid #ddd", paddingBottom: "10px" }}>
-              🎓 Official Academic Transcript
+            <h4 style={{ fontSize: "1.5em", color: "#28a745", marginTop: 0, borderBottom: "1px solid #ddd", paddingBottom: "10px" }}>
+               Official Academic Transcript
             </h4>
             
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
@@ -150,8 +150,8 @@ const Student = () => {
             {/* Blockchain Hashes and Addresses */}
             <div style={{ backgroundColor: "#f8f9fa", padding: "15px", borderRadius: "5px", fontSize: "0.9em", color: "#444" }}>
               <p style={{ margin: "0 0 5px 0", textTransform: "uppercase", fontWeight: "bold", color: "#6c757d" }}>Verified Blockchain Record</p>
-              <p style={{ margin: "3px 0" }}><strong>Verified By (Assoc. Dean):</strong> {marksheet.validatedBy}</p>
-              <p style={{ margin: "3px 0" }}><strong>Finalized By (Dean):</strong> {marksheet.uploadedBy}</p>
+              <p style={{ margin: "3px 0" }}><strong>Verified By (Associate Dean):</strong> {marksheet.validatedBy}</p>
+              <p style={{ margin: "3px 0" }}><strong>Finalized By (Dean (Academics)):</strong> {marksheet.uploadedBy}</p>
               <p style={{ margin: "3px 0" }}><strong>Date Verified:</strong> {new Date(marksheet.timestamp * 1000).toLocaleString()}</p>
 
               {txHash && (

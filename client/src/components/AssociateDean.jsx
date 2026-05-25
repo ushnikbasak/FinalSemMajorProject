@@ -24,7 +24,11 @@ const AssociateDean = () => {
   const [validatedStudents, setValidatedStudents] = useState([]);
   const [readyStudents, setReadyStudents] = useState([]);
   const [incompleteStudents, setIncompleteStudents] = useState([]);
-  const [activeAccordion, setActiveAccordion] = useState("ready"); // "incomplete", "ready", "validated", or null
+  
+  // Independent List States (All default to true/open)
+  const [showReady, setShowReady] = useState(true);
+  const [showIncomplete, setShowIncomplete] = useState(true);
+  const [showValidated, setShowValidated] = useState(true);
 
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -231,11 +235,6 @@ const AssociateDean = () => {
     }
   };
 
-  // UI Helpers
-  const toggleAccordion = (tabName) => {
-    setActiveAccordion(activeAccordion === tabName ? null : tabName);
-  };
-
   return (
     <div className="form-box">
       <h3>Associate Dean Panel</h3>
@@ -251,13 +250,13 @@ const AssociateDean = () => {
           onClick={() => setActiveMainTab("records")}
           style={{ flex: 1, backgroundColor: activeMainTab === "records" ? "#007bff" : "#6c757d", color: "white", padding: "12px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
         >
-          🎓 Manage Student Records
+           Manage Student Records
         </button>
         <button 
           onClick={() => setActiveMainTab("requests")}
           style={{ flex: 1, backgroundColor: activeMainTab === "requests" ? "#28a745" : "#6c757d", color: "white", padding: "12px", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
         >
-          🏢 Company Verifications ({pendingVerificationRequests.length})
+           Company Verifications ({pendingVerificationRequests.length})
         </button>
       </div>
 
@@ -266,12 +265,12 @@ const AssociateDean = () => {
       {/* ========================================================= */}
       {activeMainTab === "requests" && (
         <div className="upload-form">
-          <h4 style={{ marginTop: 0, color: "#28a745" }}>External Verification Requests</h4>
+          <h4 style={{ fontSize: "1.5em", marginTop: 0, color: "#28a745" }}>External Verification Requests</h4>
           <table className="uploaded-students-table">
             <thead>
               <tr>
                 <th>Req #</th>
-                <th>Company</th>
+                <th>Company Name and Verification Reason</th>
                 <th>Student ID</th>
                 <th>Actions</th>
               </tr>
@@ -305,7 +304,7 @@ const AssociateDean = () => {
         <>
           {/* HUD: Manual Input & Details */}
           <div className="upload-form">
-            <h4 style={{ marginTop: 0 }}>Audit Marksheet</h4>
+            <h4 style={{ paddingBottom: "20px", marginTop: 0, fontSize: "1.5em", }}>Validate Marksheet</h4>
             <input
               type="number"
               placeholder="Enter Student ID"
@@ -316,14 +315,14 @@ const AssociateDean = () => {
             {marksheet && marksheet.studentWallet !== zeroAddress && (
               <div className="marksheet-details" style={{ textAlign: "left", padding: "15px", backgroundColor: "#fff", border: "1px solid #ccc", marginTop: "10px", borderRadius: "5px" }}>
                 <p><strong>Student ID:</strong> {marksheet.studentId.toString()}</p>
-                <p><strong>Status:</strong> {marksheet.isValidated ? "✅ Validated" : "⏳ Pending Audit"}</p>
+                <p><strong>Status:</strong> {marksheet.isValidated ? "✅ Validated" : "⏳ Pending Validation"}</p>
                 
                 <hr style={{ margin: "10px 0" }}/>
                 <p style={{ margin: "0 0 5px 0" }}><strong>Subject Marks:</strong></p>
                 
                 <ul style={{ listStyleType: "none", paddingLeft: "0", margin: "0" }}>
                   {marksheet.results.map((res, idx) => (
-                    <li key={idx} style={{ marginBottom: "5px", padding: "5px", backgroundColor: Number(res.marks) > 0 ? "#e8f5e9" : "#ffebee", borderRadius: "4px" }}>
+                    <li key={idx} style={{ fontSize: "1.5em", marginBottom: "5px", padding: "5px", backgroundColor: Number(res.marks) > 0 ? "#e8f5e9" : "#ffebee", borderRadius: "4px" }}>
                       <strong>{res.subjectId}:</strong> {Number(res.marks) === 0 ? <span style={{color: "red"}}>Missing</span> : Number(res.marks) - 1} 
                     </li>
                   ))}
@@ -363,19 +362,19 @@ const AssociateDean = () => {
 
           <hr />
 
-          {/* ACCORDION LISTS */}
+          {/* COLLAPSIBLE LISTS */}
           <div className="lists-container">
             
             {/* Ready List */}
             <div className="professor-list-box" style={{ marginBottom: "10px" }}>
               <button 
-                onClick={() => toggleAccordion("ready")} 
-                style={{ backgroundColor: activeAccordion === "ready" ? "#007bff" : "#f1f1f1", color: activeAccordion === "ready" ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
+                onClick={() => setShowReady(!showReady)} 
+                style={{ backgroundColor: showReady ? "#007bff" : "#f1f1f1", color: showReady ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
               >
-                 Ready for Validation ({readyStudents.length}) {activeAccordion === "ready" ? "▲" : "▼"}
+                 Ready for Validation ({readyStudents.length}) {showReady ? "▲" : "▼"}
               </button>
               
-              {activeAccordion === "ready" && (
+              {showReady && (
                 <table className="uploaded-students-table" style={{ width: "100%", marginTop: "5px" }}>
                   <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
                   <tbody>
@@ -384,7 +383,7 @@ const AssociateDean = () => {
                         <tr key={index}>
                           <td>{id}</td>
                           <td>
-                            <button onClick={() => { setStudentId(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Audit & Validate</button>
+                            <button onClick={() => { setStudentId(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Validate</button>
                           </td>
                         </tr>
                       ))
@@ -397,13 +396,13 @@ const AssociateDean = () => {
             {/* Incomplete List */}
             <div className="professor-list-box" style={{ marginBottom: "10px" }}>
               <button 
-                onClick={() => toggleAccordion("incomplete")} 
-                style={{ backgroundColor: activeAccordion === "incomplete" ? "#dc3545" : "#f1f1f1", color: activeAccordion === "incomplete" ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
+                onClick={() => setShowIncomplete(!showIncomplete)} 
+                style={{ backgroundColor: showIncomplete ? "#dc3545" : "#f1f1f1", color: showIncomplete ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
               >
-                ❌ Incomplete Students ({incompleteStudents.length}) {activeAccordion === "incomplete" ? "▲" : "▼"}
+                ❌ Incomplete Students ({incompleteStudents.length}) {showIncomplete ? "▲" : "▼"}
               </button>
 
-              {activeAccordion === "incomplete" && (
+              {showIncomplete && (
                 <table className="uploaded-students-table" style={{ width: "100%", marginTop: "5px" }}>
                   <thead><tr><th>Student ID</th><th>Missing Subjects</th></tr></thead>
                   <tbody>
@@ -425,13 +424,13 @@ const AssociateDean = () => {
             {/* Validated List */}
             <div className="professor-list-box" style={{ marginBottom: "10px" }}>
               <button 
-                onClick={() => toggleAccordion("validated")} 
-                style={{ backgroundColor: activeAccordion === "validated" ? "#28a745" : "#f1f1f1", color: activeAccordion === "validated" ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
+                onClick={() => setShowValidated(!showValidated)} 
+                style={{ backgroundColor: showValidated ? "#28a745" : "#f1f1f1", color: showValidated ? "white" : "black", padding: "10px", border: "1px solid #ccc", width: "100%", textAlign: "left", cursor: "pointer", fontWeight: "bold" }}
               >
-                ✅ Validated Students ({validatedStudents.length}) {activeAccordion === "validated" ? "▲" : "▼"}
+                ✅ Validated Students ({validatedStudents.length}) {showValidated ? "▲" : "▼"}
               </button>
 
-              {activeAccordion === "validated" && (
+              {showValidated && (
                 <table className="uploaded-students-table" style={{ width: "100%", marginTop: "5px" }}>
                   <thead><tr><th>Student ID</th><th>Action</th></tr></thead>
                   <tbody>
